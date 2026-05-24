@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -103,10 +105,11 @@ func TestEndToEndScan(t *testing.T) {
 
 	var lockFromProj, lockFromDup, nmRec, pyRec bool
 	for _, r := range records {
+		sourceFile := filepath.ToSlash(r.SourceFile)
 		switch {
-		case r.Ecosystem == "npm" && r.SourceType == "npm-lockfile" && strings.Contains(r.SourceFile, "/proj/"):
+		case r.Ecosystem == "npm" && r.SourceType == "npm-lockfile" && strings.Contains(sourceFile, "/proj/"):
 			lockFromProj = true
-		case r.Ecosystem == "npm" && r.SourceType == "npm-lockfile" && strings.Contains(r.SourceFile, "/dup/"):
+		case r.Ecosystem == "npm" && r.SourceType == "npm-lockfile" && strings.Contains(sourceFile, "/dup/"):
 			lockFromDup = true
 		case r.Ecosystem == "npm" && r.SourceType == "npm-node_modules":
 			nmRec = true
@@ -145,6 +148,35 @@ func TestEndToEndScan(t *testing.T) {
 	}
 }
 
+func TestSensitiveBrowserProfileFileMatcherIsPathScoped(t *testing.T) {
+	firefoxCookies := filepath.Join("C:", "Users", "a", "AppData", "Roaming", "Mozilla", "Firefox", "Profiles", "x.default", "cookies.sqlite")
+	chromeLoginData := filepath.Join("C:", "Users", "a", "AppData", "Local", "Google", "Chrome", "User Data", "Default", "Login Data")
+	projectHistory := filepath.Join("C:", "Users", "a", "code", "History")
+	firefoxExtensionsJSON := filepath.Join("C:", "Users", "a", "AppData", "Roaming", "Mozilla", "Firefox", "Profiles", "x.default", "extensions.json")
+
+	if runtime.GOOS != "windows" {
+		if isSensitiveBrowserProfileFile(firefoxCookies, "cookies.sqlite") ||
+			isSensitiveBrowserProfileFile(chromeLoginData, "Login Data") ||
+			isSensitiveBrowserProfileFile(projectHistory, "History") ||
+			isSensitiveBrowserProfileFile(firefoxExtensionsJSON, "extensions.json") {
+			t.Fatal("non-Windows sensitive browser profile matcher must not apply Windows-only path policy")
+		}
+		return
+	}
+	if !isSensitiveBrowserProfileFile(firefoxCookies, "cookies.sqlite") {
+		t.Fatal("Firefox cookies.sqlite should be skipped in browser profile paths")
+	}
+	if !isSensitiveBrowserProfileFile(chromeLoginData, "Login Data") {
+		t.Fatal("Chromium Login Data should be skipped in browser profile paths")
+	}
+	if isSensitiveBrowserProfileFile(projectHistory, "History") {
+		t.Fatal("generic project files named History must not be skipped")
+	}
+	if isSensitiveBrowserProfileFile(firefoxExtensionsJSON, "extensions.json") {
+		t.Fatal("Firefox extensions.json must remain scannable")
+	}
+}
+
 func TestDedupIdenticalRecords(t *testing.T) {
 	root := t.TempDir()
 	// Same lockfile contents emitted twice via separate Run calls would
@@ -162,6 +194,15 @@ func TestDedupIdenticalRecords(t *testing.T) {
 	_, _ = em.Emit(r)
 	if em.RecordsEmitted != 1 || em.Duplicates != 1 {
 		t.Fatalf("dedup: emitted=%d dup=%d", em.RecordsEmitted, em.Duplicates)
+	}
+}
+
+func TestExpectedErrorClassifiersAcceptWrappedErrors(t *testing.T) {
+	if !isExpectedAccessError(fmt.Errorf("wrapped: %w", fs.ErrPermission)) {
+		t.Fatal("wrapped fs.ErrPermission should be treated as expected access error")
+	}
+	if !isMissingPathError(fmt.Errorf("wrapped: %w", fs.ErrNotExist)) {
+		t.Fatal("wrapped fs.ErrNotExist should be treated as missing path error")
 	}
 }
 

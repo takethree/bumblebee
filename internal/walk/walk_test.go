@@ -36,6 +36,38 @@ func TestDefaultExcludesCoverProtectedMacOSLibraryPaths(t *testing.T) {
 	}
 }
 
+func TestDefaultExcludesCoverWindowsSensitivePaths(t *testing.T) {
+	want := []string{
+		"AppData/Local/Google/Chrome/User Data",
+		"AppData/Local/Microsoft/Edge/User Data",
+		"AppData/Roaming/Microsoft/Credentials",
+		"AppData/Local/Microsoft/Credentials",
+		"AppData/Roaming/Microsoft/Protect",
+		"AppData/Local/Microsoft/Vault",
+		"AppData/Local/Microsoft/Windows/WebCache",
+		"AppData/Local/Packages",
+		"Google Drive",
+		"Dropbox",
+	}
+	have := make(map[string]bool, len(DefaultExcludes))
+	for _, x := range DefaultExcludes {
+		have[x] = true
+	}
+	if runtime.GOOS != "windows" {
+		for _, w := range want {
+			if have[w] {
+				t.Errorf("non-Windows DefaultExcludes unexpectedly include Windows-only path %q", w)
+			}
+		}
+		return
+	}
+	for _, w := range want {
+		if !have[w] {
+			t.Errorf("DefaultExcludes missing %q", w)
+		}
+	}
+}
+
 // TestWalkSkipsExcludedLibrarySubtrees verifies that an exclude with
 // a "/"-separated suffix (e.g. "Library/ContainerManager") prunes a
 // matching directory anywhere under any root, while a sibling
@@ -88,6 +120,29 @@ func TestWalkSkipsExcludedLibrarySubtrees(t *testing.T) {
 	}
 }
 
+func TestWalkDoesNotExcludeCuratedBrowserExtensionRoot(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "AppData", "Local", "Google", "Chrome", "User Data", "Default", "Extensions")
+	want := filepath.Join(root, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1.0.0_0", "manifest.json")
+	mustWrite(t, want, `{"manifest_version":3}`)
+
+	var seen []string
+	err := Walk(Options{
+		Roots:    []string{root},
+		Excludes: append([]string{}, DefaultExcludes...),
+	}, func(path string, d fs.DirEntry) error {
+		if !d.IsDir() {
+			seen = append(seen, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Walk: %v", err)
+	}
+	if !containsPath(seen, want) {
+		t.Fatalf("curated browser extension root was pruned; saw %v", seen)
+	}
+}
+
 func mustMkdir(t *testing.T, p string) {
 	t.Helper()
 	if err := os.MkdirAll(p, 0o755); err != nil {
@@ -97,7 +152,19 @@ func mustMkdir(t *testing.T, p string) {
 
 func mustWrite(t *testing.T, p, body string) {
 	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func containsPath(paths []string, want string) bool {
+	for _, p := range paths {
+		if p == want {
+			return true
+		}
+	}
+	return false
 }

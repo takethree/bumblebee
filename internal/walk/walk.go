@@ -27,7 +27,9 @@ import (
 // suggestion caches that frequently appear in permission-error reports.
 // These apply even when an operator explicitly passes --root "$HOME";
 // the excludes only narrow what is walked under each root.
-var DefaultExcludes = []string{
+var DefaultExcludes = append(append([]string{}, sharedDefaultExcludes...), platformDefaultExcludes()...)
+
+var sharedDefaultExcludes = []string{
 	".git",
 	".hg",
 	".svn",
@@ -250,6 +252,9 @@ func normalizeExcludes(in []string) map[string]struct{} {
 
 func isExcluded(fullPath, base string, excludes map[string]struct{}) bool {
 	if _, ok := excludes[base]; ok {
+		return true
+	}
+	if isPlatformExcludedDir(fullPath, base) {
 		return true
 	}
 	// Suffix-component match: an exclude like "Library/Caches" or

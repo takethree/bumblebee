@@ -387,7 +387,7 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 		}
 		base := d.Name()
 		// Skip obvious credential-ish dotfiles even outside excluded dirs.
-		if base == ".env" || base == ".envrc" {
+		if base == ".env" || base == ".envrc" || isSensitiveBrowserProfileFile(path, base) {
 			return nil
 		}
 		filesConsidered++
