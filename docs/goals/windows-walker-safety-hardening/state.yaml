@@ -8,7 +8,7 @@ goal:
   slug: "windows-walker-safety-hardening"
   kind: existing_plan
   tranche: "Harden Windows walker behavior around junctions, reparse points, and ACL-denied paths before adding more roots."
-  status: active
+  status: done
   oracle:
     signal: "Focused Windows tests and smoke verification prove reparse/junction safety and ACL-denied diagnostic behavior without changing shared scanner semantics."
     cadence: "after prerequisite/toolchain recovery, after implementation, and at final audit"
@@ -70,7 +70,7 @@ visual_board:
     command: "npx goalbuddy board docs/goals/windows-walker-safety-hardening"
     note: "npx returned through Socket Firewall without starting the board: [sfw] Failed to prepare firewall binary; unable to fetch latest release and no valid cached release found. File-backed board is ready."
 
-active_task: T004
+active_task: null
 
 tasks:
   - id: T001
@@ -112,6 +112,12 @@ tasks:
         - "Current scanner permission-denied tests skip on Windows; a Windows icacls fixture can enforce access denied in this workspace."
         - "Temp junction probe succeeded with attributes Directory, ReparsePoint."
         - "Temp ACL probe denied MEGASTAR\\bbutner read/execute access and Get-ChildItem failed with access denied, then cleanup restored permissions."
+      evidence:
+        - "Official Go downloads feed: https://go.dev/dl/?mode=json"
+        - "Verified Go archive SHA-256: 20d2ceafb4ed41b96b879010927b28bc92a5be57a7c1801ce365a9ca51d3224a"
+        - "go test ./internal/walk ./internal/scanner"
+        - "Temp junction probe attributes: Directory, ReparsePoint"
+        - "Temp ACL probe error: Access to the path was denied"
       risks:
         - "Verification commands must use the recovered Go executable or prepend its bin directory because go is not on PATH."
 
@@ -216,7 +222,7 @@ tasks:
   - id: T004
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: low
     objective: "Commit and push the verified Windows walker safety hardening changes."
     allowed_files:
@@ -233,12 +239,37 @@ tasks:
       - "Implementation verification did not pass or is not recorded."
       - "Commit would include files outside the approved implementation and GoalBuddy control files."
       - "Push to origin/windows/compat-layer fails."
-    receipt: null
+    receipt:
+      result: done
+      changed_files:
+        - "internal/walk/walk.go"
+        - "internal/walk/linked_windows.go"
+        - "internal/walk/linked_nonwindows.go"
+        - "internal/walk/walk_windows_test.go"
+        - "internal/scanner/scanner.go"
+        - "internal/scanner/access_windows.go"
+        - "internal/scanner/access_nonwindows.go"
+        - "internal/scanner/scanner_windows_test.go"
+        - "windows.md"
+        - "docs/goals/windows-walker-safety-hardening/goal.md"
+        - "docs/goals/windows-walker-safety-hardening/state.yaml"
+      commands:
+        - cmd: "git commit -m \"fix: harden Windows walker reparse handling\""
+          status: pass
+        - cmd: "git push origin windows/compat-layer"
+          status: pass
+        - cmd: "git status --short --branch"
+          status: pass
+        - cmd: "git log --oneline --decorate -1"
+          status: pass
+      implementation_commit: "3bb8d4b fix: harden Windows walker reparse handling"
+      pushed_to: "origin/windows/compat-layer"
+      summary: "Committed and pushed the verified Windows walker safety hardening implementation plus its GoalBuddy control files."
 
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: done
     reasoning_hint: high
     objective: "Audit whether the Windows walker safety tranche is complete."
     inputs:
@@ -256,11 +287,41 @@ tasks:
       - "full_outcome_complete: true | false"
       - "Evidence mapped to the oracle"
       - "Missing evidence or next task if not complete"
-    receipt: null
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      checklist:
+        - requirement: "A reputable Go toolchain is available and go version is recorded."
+          evidence: "T001 records go1.26.3 windows/amd64 from https://go.dev/dl/?mode=json, archive go1.26.3.windows-amd64.zip, and verified SHA-256 20d2ceafb4ed41b96b879010927b28bc92a5be57a7c1801ce365a9ca51d3224a."
+          status: pass
+        - requirement: "Focused tests prove Windows junction/reparse directories are not descended into, including a loop-style case."
+          evidence: "internal/walk/walk_windows_test.go includes TestWalkSkipsWindowsJunctionReparseDirs and TestWalkDoesNotLoopThroughWindowsJunction; go test ./internal/walk ./internal/scanner passed."
+          status: pass
+        - requirement: "Focused tests prove normal directories and intended metadata remain scannable."
+          evidence: "The junction test asserts normal package-lock metadata remains visited; the ACL scanner test asserts a healthy scan emits at least one package record."
+          status: pass
+        - requirement: "Focused scanner tests prove ACL-denied paths produce structured diagnostics without failing a healthy scan."
+          evidence: "internal/scanner/scanner_windows_test.go includes TestWindowsAccessDeniedIsDebugLevelDiagnostic using icacls; focused and broad Go tests passed."
+          status: pass
+        - requirement: "windows.md checks only directly proven Goal 6 items and leaves unrelated work open."
+          evidence: "windows.md checks reparse review, dirKey supplement, junction loop safety, ACL diagnostics, and inaccessible-path tests; broader redirected known folders remains unchecked."
+          status: pass
+        - requirement: "Verification passes."
+          evidence: "go test ./internal/walk ./internal/scanner passed; go test ./cmd/bumblebee ./internal/... passed; scripts/windows-smoke.ps1 passed with summary C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-windows-smoke\\20260524-170204\\smoke-summary.redacted.json; git diff --check passed; commit 3bb8d4b was pushed."
+          status: pass
+      missing_evidence: []
+      summary: "The tranche is complete. The branch contains the pushed implementation commit, tests and smoke passed, windows.md records the proven Goal 6 items, and unsupported scope remains open."
 
 checks:
-  dirty_fingerprint: unknown
+  dirty_fingerprint: "clean after 3bb8d4b before receipt update"
   last_verification:
-    result: unknown
-    task: null
-    commands: []
+    result: pass
+    task: T999
+    commands:
+      - "go test ./internal/walk ./internal/scanner"
+      - "go test ./cmd/bumblebee ./internal/..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check -- internal/walk internal/scanner windows.md"
+      - "git status --short --branch"
+      - "git log --oneline --decorate -1"
