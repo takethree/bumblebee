@@ -31,11 +31,44 @@ healthy scans.
 - [x] Add `windows` to `.goreleaser.yaml` `goos`.
 - [x] Emit `.exe` binaries for Windows releases.
 - [x] Use `.zip` archives for Windows release artifacts.
-- [ ] Document the minimum supported Windows versions.
+- [x] Document the minimum supported Windows versions.
 - [x] Confirm whether `os/user`, signal handling, path handling, and race tests pass on Windows.
 
 Why: before changing behavior, the fork needs proof that the current CLI,
 parsers, output sinks, and self-test can compile and run on Windows.
+
+Minimum Windows support policy:
+
+- Runtime floor: this fork currently targets Go 1.25, and Go 1.21 and later
+  require Windows 10 or higher, or Windows Server 2016 or higher. That Go
+  requirement is the compatibility layer's minimum runtime floor, not a broad
+  product support promise for every Windows install at or above that version.
+- Operator support target: supported Windows operator paths should be limited
+  to actively Microsoft-serviced Windows client and Windows Server releases
+  that also meet the Go runtime floor. Windows 11 serviced releases and
+  Windows Server 2016, 2019, 2022, and 2025 LTSC/LTSB releases are the source
+  backed families at the time of this check.
+- Windows 10 caveat: Windows 10 version 22H2 and listed Windows 10 Enterprise
+  LTSB 2015 editions reached end of support on 2025-10-14 and no longer
+  receive security updates after that date. Treat Windows 10 as
+  runtime-compatible with the Go floor, but do not generally claim normal
+  Windows 10 support unless the operator is on a valid serviced LTSC or ESU
+  path.
+- CI validation target: CI validates GitHub Actions `windows-latest`, which is
+  Windows Server 2025 x64 at the time of verification. GitHub's `-latest`
+  label intentionally follows the newest stable OS image, so this validation
+  target may move over time.
+- Artifact and architecture scope: GoReleaser builds Windows artifacts for
+  `amd64` and `arm64`. Current runtime smoke validation is Windows `amd64`;
+  Windows `arm64` is release-built but not yet runtime-smoke-validated.
+
+Sources verified 2026-05-24:
+
+- https://go.dev/wiki/MinimumRequirements
+- https://github.com/actions/runner-images
+- https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
+- https://learn.microsoft.com/en-gb/lifecycle/announcements/windows-10-end-of-support
+- https://learn.microsoft.com/en-us/windows/release-health/windows-server-release-info
 
 ## Goal 2: Support Explicit Windows Roots
 
@@ -291,9 +324,15 @@ Known limitations / current support boundary:
   roots when present, writes file output in append mode, sends HTTP output to a
   local endpoint, and emits schema-compatible NDJSON with
   `scan_summary.status=complete` for healthy runs.
-- Platform support boundary: CI uses `windows-latest`, but minimum supported
-  Windows versions are not documented yet. Do not treat older Windows versions
-  as supported until Goal 1 is completed.
+- Platform support boundary: the Windows compatibility layer documents a Go
+  runtime floor of Windows 10 or Windows Server 2016 and newer, but the
+  operator support claim is limited to actively Microsoft-serviced Windows
+  client and Windows Server releases. CI currently validates GitHub Actions
+  `windows-latest`, which is Windows Server 2025 x64 at the time of
+  verification. Windows `amd64` and `arm64` artifacts are built, but runtime
+  smoke validation is currently Windows `amd64`; `arm64`, older Windows, and
+  non-serviced Windows 10 paths remain unclaimed unless separately tested and
+  serviced.
 - Root coverage boundary: baseline roots currently cover the implemented
   Windows Go user root, editor extension roots, MCP config roots, Chrome/Edge
   extension roots, and Firefox profile roots. User npm/global, Python, pipx,

@@ -1,0 +1,256 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Minimum Support Documentation"
+  slug: "windows-minimum-support"
+  kind: existing_plan
+  tranche: "Document the minimum Windows support floor in windows.md without broadening public support claims."
+  status: active
+  oracle:
+    signal: "windows.md records a source-backed Windows support floor, checks the Goal 1 minimum-version item, and keeps broader support claims constrained."
+    cadence: "after source verification, after docs update, and at final audit"
+    final_proof: "Source-backed docs update passes diff checks, targeted searches find the policy terms, README remains untouched, and the branch is pushed."
+  intake:
+    original_request: "$goalbuddy:goal-prep after the Windows minimum support plan."
+    interpreted_outcome: "Prepare a GoalBuddy board for a docs-only Goal 1 support-floor slice."
+    input_shape: existing_plan
+    audience: "Maintainer of the TakeThree Windows compatibility fork"
+    authority: approved
+    proof_type: source_backed_answer
+    completion_proof: "windows.md contains the verified minimum Windows support policy and the branch contains a pushed docs commit."
+    likely_misfire: "Making broad README or operator support claims before Windows deployment/user-facing docs are ready."
+    blind_spots_considered:
+      - "Lifecycle and runner-image facts are time-sensitive and must be verified during execution."
+      - "Windows 10 support needs nuance after the 2025-10-14 general-support date."
+      - "Windows arm64 release artifacts exist but have not been runtime-smoke-validated locally."
+      - "This is compatibility-layer documentation, not a support expansion."
+    existing_plan_facts:
+      - "Docs-only implementation in windows.md."
+      - "Verify current Go, GitHub Actions runner, and Microsoft lifecycle sources before editing."
+      - "Separate runtime floor, CI validation target, operator support claim, and architecture validation scope."
+      - "Do not touch README.md or deployment docs in this tranche."
+      - "Commit message after implementation: docs: document Windows support floor."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: false
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-minimum-support"
+    note: "npx returned through Socket Firewall without starting the board: failed to fetch https://raw.githubusercontent.com/tolibear/goalbuddy/main/extend/catalog.json (HTTP 404). File-backed board is ready."
+
+active_task: T004
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: low
+    objective: "Verify current source facts for the Windows support-floor wording."
+    inputs:
+      - "docs/goals/windows-minimum-support/goal.md"
+      - "go.mod"
+      - ".github/workflows"
+      - ".goreleaser.yaml"
+      - "Official Go minimum requirements"
+      - "Official GitHub runner image documentation"
+      - "Microsoft Windows lifecycle documentation"
+    constraints:
+      - "Read-only."
+      - "Do not edit repo files."
+      - "Use authoritative sources and record URLs or exact local files."
+      - "Call out any source conflict instead of guessing."
+    expected_output:
+      - "Go runtime minimum support fact"
+      - "GitHub windows-latest runner fact"
+      - "Microsoft lifecycle facts relevant to Windows 10, Windows 11, and Windows Server"
+      - "Repo artifact/CI architecture facts"
+      - "Recommended exact support wording for Worker"
+    receipt:
+      result: done
+      summary: "Verified current Go, GitHub runner-image, Microsoft lifecycle, and repo configuration facts for the Windows support-floor wording."
+      evidence:
+        - "go.mod: go 1.25"
+        - ".github/workflows/ci.yml: windows-latest matrix entry and setup-go go-version 1.25"
+        - ".goreleaser.yaml: windows goos with amd64 and arm64 goarch"
+        - "https://go.dev/wiki/MinimumRequirements"
+        - "https://github.com/actions/runner-images"
+        - "https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information"
+        - "https://learn.microsoft.com/en-gb/lifecycle/announcements/windows-10-end-of-support"
+        - "https://learn.microsoft.com/en-us/windows/release-health/windows-server-release-info"
+      facts:
+        - "Go minimum requirements state Go 1.21 and later require Windows 10 or higher, or Windows Server 2016 or higher."
+        - "Go 1.25 Windows cgo/race use requires a C compiler with DWARF 5 support; the repo's Windows CI installs MSYS2 UCRT64 GCC for race tests."
+        - "GitHub runner-images lists Windows Server 2025 as the current windows-latest / windows-2025 x64 image and says -latest labels point to the newest stable OS version."
+        - "Microsoft states Windows 10 22H2 and listed Windows 10 Enterprise LTSB 2015 editions reached end of support on 2025-10-14 and no longer receive security updates after that date."
+        - "Microsoft Windows 11 release information lists currently serviced Windows 11 versions and their edition-specific end-of-update dates."
+        - "Microsoft Windows Server release information lists Windows Server 2016, 2019, 2022, and 2025 LTSC support timelines; Server 2016 extended support currently runs to 2027-01-12."
+      recommended_wording:
+        - "The compatibility layer's runtime floor is Windows 10 or Windows Server 2016 and newer because the repo targets Go 1.25 and Go 1.21+ has that Windows floor."
+        - "The supported operator target is actively Microsoft-serviced Windows client/server releases that meet the Go runtime floor."
+        - "Windows 10 should be treated as not generally supported after 2025-10-14 unless the operator is on a valid serviced LTSC/ESU path."
+        - "CI validation currently means GitHub Actions windows-latest, which is Windows Server 2025 x64 at the time of verification."
+        - "Release artifacts are built for windows/amd64 and windows/arm64, but runtime smoke validation is currently windows/amd64 only."
+      source_conflicts: []
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Approve the exact docs-only Worker package for the support-floor update."
+    inputs:
+      - "T001 receipt"
+      - "docs/goals/windows-minimum-support/goal.md"
+      - "The proposed Goal 1 plan from chat"
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Reject stale or unsourced lifecycle claims."
+      - "Reject README, code, CI, release, deployment-doc, or public support-claim expansion."
+    expected_output:
+      - "approved | revise | blocked"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify commands"
+      - "stop_if conditions"
+      - "Exact support wording or required wording constraints"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      worker_objective: "Update windows.md with the source-backed Windows support-floor policy, check the Goal 1 minimum-version item, and update the known-limitations platform boundary without touching README, code, CI, release config, deployment docs, or scanner behavior."
+      allowed_files:
+        - "windows.md"
+      verify:
+        - "git diff --check -- windows.md"
+        - "rg -n \"minimum supported|Windows 10|Windows 11|Windows Server|windows-latest|arm64|amd64|LTSC|ESU|Go 1.25\" windows.md"
+        - "git diff --stat"
+      stop_if:
+        - "Need to edit any file other than windows.md."
+        - "Need code, CI, GoReleaser, README, deployment docs, or scanner behavior changes."
+        - "Current sources conflict with the planned support wording."
+        - "The wording would imply broader Windows support than currently tested."
+        - "Verification fails twice for the same reason."
+      wording_constraints:
+        - "Separate Go runtime floor from supported operator target."
+        - "Use actively Microsoft-serviced Windows client/server releases as the operator support claim."
+        - "Caveat Windows 10 as runtime-compatible but not generally supported after 2025-10-14 except valid serviced LTSC/ESU paths."
+        - "State windows-latest is Windows Server 2025 x64 at verification time and may move with GitHub runner-image policy."
+        - "State windows/arm64 artifacts are built but not runtime-smoke-validated."
+      rationale: "The Scout evidence is current and source-backed, and the safest implementation is a narrow windows.md documentation update."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement the approved docs-only Windows support-floor update in windows.md."
+    allowed_files:
+      - "windows.md"
+    verify:
+      - "git diff --check -- windows.md"
+      - "rg -n \"minimum supported|Windows 10|Windows 11|Windows Server|windows-latest|arm64|amd64|LTSC|ESU|Go 1.25\" windows.md"
+      - "git diff --stat"
+    stop_if:
+      - "Need to edit any file other than windows.md."
+      - "Need code, CI, GoReleaser, README, deployment docs, or scanner behavior changes."
+      - "Current sources conflict with the planned support wording."
+      - "The wording would imply broader Windows support than currently tested."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      summary: "Updated windows.md with the source-backed Windows minimum support policy and constrained compatibility-layer support boundary."
+      files_changed:
+        - "windows.md"
+      evidence:
+        - "Goal 1 minimum-supported Windows item is checked."
+        - "windows.md separates the Go 1.25 runtime floor from the supported operator target."
+        - "windows.md documents Windows 10, Windows 11, Windows Server, windows-latest, amd64, arm64, LTSC, and ESU scope."
+        - "Known limitations no longer says the minimum supported Windows versions are undocumented."
+      verification:
+        - command: "git diff --check -- windows.md"
+          result: "pass; Git reported only the existing LF-to-CRLF working-copy warning."
+        - command: "rg -n \"minimum supported|Windows 10|Windows 11|Windows Server|windows-latest|arm64|amd64|LTSC|ESU|Go 1.25\" windows.md"
+          result: "pass; targeted policy terms found."
+        - command: "git diff --stat"
+          result: "pass; diff limited to windows.md before receipt update."
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: low
+    objective: "Commit and push the verified Windows support-floor docs update."
+    allowed_files:
+      - "windows.md"
+      - "docs/goals/windows-minimum-support/goal.md"
+      - "docs/goals/windows-minimum-support/state.yaml"
+    verify:
+      - "git status --short"
+      - "git log --oneline --decorate -1"
+    stop_if:
+      - "Unrelated dirty files appear."
+      - "Implementation verification did not pass or is not recorded."
+      - "Commit would include files outside windows.md and GoalBuddy control files."
+      - "Push to origin/windows/compat-layer fails."
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Audit whether the Windows minimum-support documentation tranche is complete."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "windows.md Goal 1"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if support claims are unsourced, stale, or broader than the compatibility layer."
+      - "Reject completion if README or other public support docs changed in this tranche."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Evidence mapped to the oracle"
+      - "Missing evidence or next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []
