@@ -8,7 +8,7 @@ goal:
   slug: "windows-endpoint-identity"
   kind: existing_plan
   tranche: "Normalize Windows endpoint identity semantics for the compatibility layer."
-  status: active
+  status: done
   oracle:
     signal: "Windows endpoint identity behavior is source-backed, tested, and documented without schema drift or automatic device fingerprinting."
     cadence: "after identity source validation, after implementation, and at final audit"
@@ -68,7 +68,7 @@ visual_board:
     command: "npx goalbuddy board docs/goals/windows-endpoint-identity"
     note: "npx/npm is not available on PATH in this shell, so the local board could not be started during goal prep. File-backed board is ready."
 
-active_task: T004
+active_task: null
 
 tasks:
   - id: T001
@@ -256,7 +256,7 @@ tasks:
   - id: T004
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: low
     objective: "Commit and push the verified Windows endpoint identity changes."
     allowed_files:
@@ -277,12 +277,35 @@ tasks:
       - "Implementation verification did not pass or is not recorded."
       - "Commit would include files outside the approved implementation and GoalBuddy control files."
       - "Push to origin/windows/compat-layer fails."
-    receipt: null
+    receipt:
+      result: done
+      summary: "Committed and pushed the verified Windows endpoint identity changes."
+      changed_files:
+        - "internal/endpoint/endpoint.go"
+        - "internal/endpoint/uid_windows.go"
+        - "internal/endpoint/uid_nonwindows.go"
+        - "internal/endpoint/endpoint_windows_test.go"
+        - "internal/model/model.go"
+        - "docs/state-model.md"
+        - "windows.md"
+        - "docs/goals/windows-endpoint-identity/goal.md"
+        - "docs/goals/windows-endpoint-identity/state.yaml"
+      commands:
+        - command: "git add internal\\endpoint\\endpoint.go internal\\endpoint\\uid_windows.go internal\\endpoint\\uid_nonwindows.go internal\\endpoint\\endpoint_windows_test.go internal\\model\\model.go docs\\state-model.md windows.md docs\\goals\\windows-endpoint-identity\\goal.md docs\\goals\\windows-endpoint-identity\\state.yaml"
+          status: pass
+        - command: "git commit -m \"fix: normalize Windows endpoint identity\""
+          status: pass
+        - command: "git push origin windows/compat-layer"
+          status: pass
+      evidence:
+        - "Commit a2fbe6d created and pushed to origin/windows/compat-layer."
+        - "git show --stat --name-only HEAD listed only endpoint code/tests, docs/state-model.md, windows.md, and GoalBuddy control files."
+        - "git status --short --branch was clean after the push before completion-receipt update."
 
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: done
     reasoning_hint: high
     objective: "Audit whether the Windows endpoint identity tranche is complete."
     inputs:
@@ -300,11 +323,44 @@ tasks:
       - "full_outcome_complete: true | false"
       - "Evidence mapped to the oracle"
       - "Missing evidence or next task if not complete"
-    receipt: null
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "Final audit passed for the Windows endpoint identity tranche."
+      checklist:
+        - "Objective deliverable: Windows endpoint identity behavior is implemented, tested, documented, and pushed."
+        - "Schema constraint: git diff against HEAD^ shows no README.md or docs/schema changes."
+        - "Implementation: endpoint.Current now uses an OS-specific fallbackUID; Windows fallback leaves uid empty instead of emitting -1."
+        - "Tests: local Go test passed for ./internal/endpoint and ./cmd/bumblebee."
+        - "Docs: docs/state-model.md documents Windows uid as SID and device_id as operator supplied."
+        - "windows.md: Goal 7 checks uid decision, numeric-UID docs, device_id stability, device-id provisioning, and endpoint tests."
+        - "Remaining explicit gap: windows.md intentionally leaves local/domain/Azure AD username-shape validation unchecked."
+        - "Misfire audit: no automatic MachineGuid, SMBIOS, registry, Entra, Intune, hostname-derived, or hardware identifier collection was added."
+        - "Branch state: implementation commit a2fbe6d was pushed to origin/windows/compat-layer."
+      commands:
+        - command: "git status --short --branch"
+          status: pass
+        - command: "git log --oneline --decorate -3"
+          status: pass
+        - command: "git show --stat --name-only --oneline --no-renames HEAD"
+          status: pass
+        - command: "C:\\Users\\bbutner\\AppData\\Local\\Programs\\bumblebee-tools\\go1.26.3\\go\\bin\\go.exe test ./internal/endpoint ./cmd/bumblebee"
+          status: pass
+        - command: "git diff --exit-code HEAD^ HEAD -- docs\\schema README.md"
+          status: pass
+        - command: "git diff --check HEAD^ HEAD -- internal\\endpoint internal\\model\\model.go docs\\state-model.md windows.md"
+          status: pass
 
 checks:
   dirty_fingerprint: clean_at_prep
   last_verification:
-    result: unknown
-    task: null
-    commands: []
+    result: pass
+    task: T999
+    commands:
+      - "git status --short --branch"
+      - "git log --oneline --decorate -3"
+      - "git show --stat --name-only --oneline --no-renames HEAD"
+      - "C:\\Users\\bbutner\\AppData\\Local\\Programs\\bumblebee-tools\\go1.26.3\\go\\bin\\go.exe test ./internal/endpoint ./cmd/bumblebee"
+      - "git diff --exit-code HEAD^ HEAD -- docs\\schema README.md"
+      - "git diff --check HEAD^ HEAD -- internal\\endpoint internal\\model\\model.go docs\\state-model.md windows.md"
