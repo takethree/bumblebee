@@ -1,0 +1,308 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Compatibility Maintenance Cleanup"
+  slug: "windows-maintenance-cleanup"
+  kind: existing_plan
+  tranche: "Reduce avoidable shared base-code drift while preserving Windows compatibility-layer behavior."
+  status: done
+  oracle:
+    signal: "Shared base-code changes are minimized, Windows-specific behavior lives behind platform seams/build-tagged tests, and current Windows behavior remains verified."
+    cadence: "after the implementation Worker package and at final audit"
+    final_proof: "Targeted/full Go tests pass, Windows smoke passes, git diff checks pass, windows.md records only maintenance facts, and final audit records full_outcome_complete: true."
+  intake:
+    original_request: "Code maintenance should be easy; changing base-code complicates life. Prepare the maintenance cleanup plan as a GoalBuddy goal."
+    interpreted_outcome: "The Windows fork is easier to maintain by removing avoidable shared core changes and isolating Windows-specific code."
+    input_shape: existing_plan
+    audience: "Bumblebee maintainers and future upstream reviewers"
+    authority: approved
+    proof_type: test
+    completion_proof: "The cleanup is implemented, current Windows behavior still passes tests/smoke, and the final audit proves no new scope leaked into shared base behavior."
+    likely_misfire: "Rewriting shared architecture, changing scanner semantics, weakening verified Windows behavior, or creating large unrelated refactors while trying to reduce maintenance risk."
+    blind_spots_considered:
+      - "StableID path normalization is a shared core semantic change and should be removed unless separately approved."
+      - "Windows browser root literals in shared root logic increase merge friction and should move behind a platform hook if safe."
+      - "Moving tests can itself cause churn; only move Windows-only tests where it materially reduces shared-file friction."
+    existing_plan_facts:
+      - "Revert shared StableID path-normalization changes and related docs/tests."
+      - "Move Windows browser candidate roots and platform root classification behind platform hooks."
+      - "Keep shared code as orchestration only where practical."
+      - "Preserve existing Windows baseline/browser/all-users/privacy behavior."
+      - "Do not alter schema fields, parsers, sinks, endpoint identity, root kinds, profile meanings, WSL, deployment, or native ecosystem scope."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: false
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-maintenance-cleanup"
+    note: "npx is not available on PATH in this shell, so the local board could not be started during goal prep."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Validate the maintenance cleanup plan against the current dirty diff and approve the largest safe Worker package."
+    inputs:
+      - "docs/goals/windows-maintenance-cleanup/goal.md"
+      - "The approved maintenance cleanup plan from chat"
+      - "Current dirty diff"
+      - "windows.md Goal 13"
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Preserve verified Windows behavior."
+      - "Reject schema, parser, sink, endpoint identity, profile, root-kind, WSL, deployment, native ecosystem, or broad scanner changes."
+    expected_output:
+      - "approved | revise | blocked"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify commands"
+      - "stop_if conditions"
+      - "Whether test movement is worth doing in this tranche"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      rationale: "The approved cleanup directly targets the two avoidable maintenance risks in the dirty diff: shared StableID path normalization and Windows root/browser literals in shared roots.go. Selective test movement is worthwhile for Windows-only root/walker/scanner tests, but shared helpers and genuinely cross-platform tests should remain in shared files."
+      worker_objective: "Remove shared StableID path-normalization changes; move Windows root classification and browser candidate roots behind platform hooks; move Windows-only tests into build-tagged Windows test files where it reduces shared-file churn; preserve current Windows behavior and update only maintenance tracking."
+      allowed_files:
+        - "internal/model/model.go"
+        - "internal/model/model_test.go"
+        - "docs/state-model.md"
+        - "cmd/bumblebee/roots.go"
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/roots_nonwindows.go"
+        - "cmd/bumblebee/main_test.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "internal/scanner/scanner_test.go"
+        - "internal/scanner/scanner_windows_test.go"
+        - "internal/walk/walk_test.go"
+        - "internal/walk/walk_windows_test.go"
+        - "windows.md"
+      verify:
+        - "gofmt -w on touched Go files"
+        - "go test ./cmd/bumblebee ./internal/..."
+        - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+        - "git diff --check -- touched files"
+        - "rg \"identityPath|Path-bearing tuple fields are normalized\" internal/model docs/state-model.md"
+        - "rg \"case \\\"windows\\\"|AppData|Microsoft/Edge|Packages/Claude\" cmd/bumblebee/roots.go"
+      stop_if:
+        - "Need files outside allowed_files."
+        - "Need to keep StableID path normalization as a shared core change."
+        - "Need to weaken verified Windows behavior."
+        - "Need schema, parser, sink, endpoint identity, profile, root-kind, WSL, deployment, or native ecosystem behavior changes."
+
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Execute the Judge-approved maintenance cleanup package."
+    allowed_files:
+      - "internal/model/model.go"
+      - "internal/model/model_test.go"
+      - "docs/state-model.md"
+      - "cmd/bumblebee/roots.go"
+      - "cmd/bumblebee/roots_windows.go"
+      - "cmd/bumblebee/roots_nonwindows.go"
+      - "cmd/bumblebee/main_test.go"
+      - "cmd/bumblebee/main_windows_test.go"
+      - "internal/scanner/scanner_test.go"
+      - "internal/scanner/scanner_windows_test.go"
+      - "internal/walk/walk_test.go"
+      - "internal/walk/walk_windows_test.go"
+      - "windows.md"
+    verify:
+      - "gofmt -w on touched Go files"
+      - "go test ./cmd/bumblebee ./internal/..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check -- touched files"
+      - "rg \"identityPath|Path-bearing tuple fields are normalized\" internal/model docs/state-model.md"
+      - "rg \"case \\\"windows\\\"|AppData|Microsoft/Edge|Packages/Claude\" cmd/bumblebee/roots.go"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Need to change output schema fields, parser behavior, sink behavior, endpoint identity, profile meanings, root-kind taxonomy, WSL behavior, deployment policy, or native ecosystem coverage."
+      - "Need to weaken or remove verified Windows behavior."
+      - "Need to keep StableID path normalization as a shared core change."
+      - "Test movement creates more churn than it removes."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      decision: implemented
+      full_outcome_complete: false
+      changed_files:
+        - "internal/model/model.go"
+        - "internal/model/model_test.go"
+        - "docs/state-model.md"
+        - "cmd/bumblebee/roots.go"
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/roots_nonwindows.go"
+        - "cmd/bumblebee/main_test.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "internal/scanner/scanner_test.go"
+        - "internal/scanner/scanner_windows_test.go"
+        - "internal/walk/walk_test.go"
+        - "internal/walk/walk_windows_test.go"
+        - "windows.md"
+      commands:
+        - cmd: "C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-go-go1.25.10\\go\\bin\\gofmt.exe -w touched Go files"
+          status: pass
+        - cmd: "go test ./cmd/bumblebee ./internal/..."
+          status: pass
+        - cmd: "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+          status: pass
+        - cmd: "git diff --check -- touched files"
+          status: pass
+        - cmd: "rg 'identityPath|Path-bearing tuple fields are normalized' internal/model docs/state-model.md"
+          status: pass_no_matches
+        - cmd: "rg 'case \"windows\"|AppData|Microsoft/Edge|Packages/Claude' cmd/bumblebee/roots.go"
+          status: pass_no_matches
+      summary: "Removed the shared StableID path-normalization drift, moved Windows root/browser literals behind platform hooks, moved Windows-only tests into build-tagged files where practical, and updated windows.md with a maintenance-only receipt."
+      evidence:
+        - "Smoke summary: C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-windows-smoke\\20260524-155057\\smoke-summary.redacted.json"
+
+  - id: T003
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review the maintenance cleanup for compatibility-layer boundaries and maintenance risk."
+    inputs:
+      - "T001 receipt"
+      - "T002 receipt"
+      - "Current dirty diff"
+      - "Verification output"
+      - "windows.md Goal 13"
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Reject completion if shared base-code drift remains avoidable or Windows behavior is weakly verified."
+    expected_output:
+      - "approved | needs_fix | blocked"
+      - "Maintenance risk assessment"
+      - "Required fix task if not approved"
+      - "Whether final audit may proceed"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      maintenance_risk: "Reduced. The remaining shared changes are orchestration hooks or existing feature-parity scaffolding; Windows-specific literals and behavior moved to Windows build-tagged files where the approved slice allowed it."
+      summary: "Approved the cleanup package. StableID no longer contains path normalization drift, shared roots.go has no Windows AppData/Edge/Claude package literals, Windows-only root/scanner/walker tests are build-tagged where practical, and Windows behavior remains verified by tests and smoke."
+      final_audit_may_proceed: true
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: blocked
+    reasoning_hint: medium
+    objective: "Apply any focused fixes required by T003, if Judge does not approve the first cleanup package."
+    allowed_files:
+      - "internal/model/model.go"
+      - "internal/model/model_test.go"
+      - "docs/state-model.md"
+      - "cmd/bumblebee/roots.go"
+      - "cmd/bumblebee/roots_windows.go"
+      - "cmd/bumblebee/roots_nonwindows.go"
+      - "cmd/bumblebee/main_test.go"
+      - "cmd/bumblebee/main_windows_test.go"
+      - "internal/scanner/scanner_test.go"
+      - "internal/scanner/scanner_windows_test.go"
+      - "internal/walk/walk_test.go"
+      - "internal/walk/walk_windows_test.go"
+      - "windows.md"
+    verify:
+      - "go test ./cmd/bumblebee ./internal/..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check -- touched files"
+    stop_if:
+      - "T003 did not produce exact required fixes."
+      - "Need files outside allowed_files."
+      - "Fix requires changing behavior outside maintenance cleanup."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: not_required
+      summary: "T003 approved the first cleanup package; no focused fix Worker is required."
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the Windows compatibility maintenance cleanup is complete."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "windows.md Goal 13"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if tests or smoke verification are stale, missing, or red."
+      - "Reject completion if avoidable shared base-code drift remains."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Evidence mapped to the oracle"
+      - "Missing evidence or next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      checklist:
+        - requirement: "Shared StableID path-normalization drift is removed."
+          evidence: "Targeted search for identityPath and the removed state-model wording returned no matches; model tests still pass."
+        - requirement: "Windows root discovery remains a compatibility layer, not a shared scanner fork."
+          evidence: "roots.go calls platform hooks; Windows AppData, Edge slash-form, and Claude MSIX literals live in roots_windows.go rather than shared roots.go."
+        - requirement: "Windows behavior is not weakened."
+          evidence: "Windows root, browser, all-users, privacy scanner, and walker assertions remain covered by Windows build-tagged tests; go test and Windows smoke passed."
+        - requirement: "No new schema, parser, sink, endpoint, profile, root-kind, WSL, deployment, or native ecosystem scope was added."
+          evidence: "Changes stayed within the T001 allowed maintenance files and windows.md records a maintenance receipt only."
+        - requirement: "Verification is current."
+          evidence: "gofmt completed; go test ./cmd/bumblebee ./internal/... passed; scripts/windows-smoke.ps1 passed; git diff --check passed; targeted drift searches returned no matches."
+      summary: "Windows maintenance cleanup is complete. The fork remains a compatibility layer with Windows-specific behavior isolated behind platform files and the current Windows behavior verified."
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T002
+    commands:
+      - "gofmt -w on touched Go files"
+      - "go test ./cmd/bumblebee ./internal/..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check -- touched files"
+      - "rg 'identityPath|Path-bearing tuple fields are normalized' internal/model docs/state-model.md (no matches)"
+      - "rg 'case \"windows\"|AppData|Microsoft/Edge|Packages/Claude' cmd/bumblebee/roots.go (no matches)"
