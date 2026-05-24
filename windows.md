@@ -206,7 +206,7 @@ ordinary Windows filesystem coverage would be misleading.
 - [x] Run an HTTP sink smoke test against a local endpoint.
 - [x] Run a file output smoke test with append mode.
 - [x] Confirm `scan_summary.status=complete` for healthy runs.
-- [ ] Capture known limitations before declaring Windows support complete.
+- [x] Capture known limitations before declaring Windows support complete.
 
 Why: implementation is not complete until the Windows binary proves the same
 operator workflow as macOS/Linux: roots preview, scan, output, summary, and
@@ -265,6 +265,54 @@ Smoke receipt from 2026-05-24 Windows HTTP sink validation:
 - The HTTP `scan_summary` had `status=complete`, `profile=project`, `http_batches_attempted=1`, `http_batches_succeeded=1`, `http_last_status=200`, and no raw received NDJSON was written to the repo.
 - The same smoke run also preserved the real-profile baseline proof: 9 roots, 3 browser extension roots, 1,042 package records, 0 findings, 5 duplicates, 4 informational diagnostics, no timeout, and no summary error.
 
+Known limitations / current support boundary:
+
+- Tested support: the current Windows compatibility layer builds
+  `bumblebee.exe`, passes `selftest`, previews baseline roots, scans explicit
+  project roots, scans a real current-user baseline, scans Chrome/Edge/Firefox
+  browser extension roots when present, scans Windows Claude Desktop MCP config
+  roots when present, writes file output in append mode, sends HTTP output to a
+  local endpoint, and emits schema-compatible NDJSON with
+  `scan_summary.status=complete` for healthy runs.
+- Platform support boundary: CI uses `windows-latest`, but minimum supported
+  Windows versions are not documented yet. Do not treat older Windows versions
+  as supported until Goal 1 is completed.
+- Root coverage boundary: baseline roots currently cover the implemented
+  Windows Go user root, editor extension roots, MCP config roots, Chrome/Edge
+  extension roots, and Firefox profile roots. User npm/global, Python, pipx,
+  virtualenv, Ruby/Bundler, and Composer roots remain planned but unimplemented
+  until Goal 3 items are completed.
+- Browser boundary: Chrome, Edge, and Firefox are the exercised browser families
+  so far. Brave, Chromium, Vivaldi, LibreWolf, and Waterfox roots remain
+  unclaimed until their Goal 4 items are implemented and tested.
+- Multi-user boundary: Windows `--all-users` uses local profile-directory
+  enumeration only, matching the compatibility-layer approach. Registry, SID,
+  domain, Azure AD, OneDrive, and redirected-profile discovery are not claimed;
+  elevated deployment may still be needed operationally to read other users'
+  profiles.
+- Walker/privacy boundary: Windows sensitive-path excludes are implemented, but
+  junction, symlink, reparse point, non-Unix `dirKey`, ACL-denied-path, and
+  broader OneDrive/redirected-known-folder behavior remain open Goal 6 work.
+- Endpoint identity boundary: no Windows identity semantics are finalized yet.
+  `endpoint.device_id` should remain the preferred stable identity, and
+  `endpoint.uid`, username shape, and Windows device ID provisioning still need
+  Goal 7 documentation and tests.
+- Deployment/docs boundary: Task Scheduler, Intune/RMM/SCCM, incident-response,
+  recurring baseline, file/log-shipper, HTTPS secret, permission, cadence, and
+  verification guidance are not written yet. README and user-facing docs should
+  not broadly claim Windows support until Goals 8 and 9 are completed.
+- Native ecosystem boundary: NuGet, PowerShell modules, Chocolatey, Scoop,
+  winget/MSIX/AppX, Visual Studio extensions, Cargo, Maven, and Gradle scope
+  decisions are still open in Goal 10. Unsupported native ecosystems must stay
+  explicitly documented rather than implied by "Windows support."
+- WSL boundary: no WSL filesystem coverage is claimed. Until Goal 11 makes an
+  explicit decision, WSL users should not assume the Windows binary inventories
+  Linux distro package state.
+- Diagnostics boundary: the real-profile smoke currently reports
+  `diagnostics_count` as informational diagnostics, not only warnings or
+  errors. Operator-facing docs still need to decide whether to clarify that
+  wording.
+
 Use `powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1` for
 future real-profile validation runs. The script builds into `%TEMP%`, runs the
 core Windows smoke checks, keeps raw NDJSON outside the repo, and writes only
@@ -276,7 +324,7 @@ Known gaps from the smoke run:
 - [x] Run a real-profile MCP smoke on a machine with a Windows Claude Desktop config root present.
 - [ ] Decide whether operator-facing docs should clarify that `diagnostics_count` includes informational diagnostics, not only warnings or errors.
 - [x] Add a redacted smoke-test receipt pattern for future Windows validation runs so raw NDJSON inventory is never checked in.
-- [ ] Keep the remaining browser families and known-limitations Goal 12 items open until separately exercised.
+- [ ] Keep the remaining browser families open until separately exercised.
 
 ## Goal 13: Keep The Fork Easy To Update
 
