@@ -203,7 +203,7 @@ ordinary Windows filesystem coverage would be misleading.
 - [x] Run a baseline scan on a real Windows developer profile.
 - [x] Run a browser-extension baseline scan on a profile with Chrome or Edge.
 - [x] Run a Windows Claude Desktop MCP config root scan.
-- [ ] Run an HTTP sink smoke test against a local endpoint.
+- [x] Run an HTTP sink smoke test against a local endpoint.
 - [x] Run a file output smoke test with append mode.
 - [x] Confirm `scan_summary.status=complete` for healthy runs.
 - [ ] Capture known limitations before declaring Windows support complete.
@@ -257,6 +257,14 @@ Maintenance receipt from 2026-05-24 Windows privacy platform-hook refactor:
 - Preserved the Goal 6A behavior: real Windows smoke still resolved 9 roots, kept 3 browser extension roots, listed Chrome/Edge/Firefox roots, and completed with 19,438 files considered, 1,042 package records, 0 findings, 5 duplicates, 4 informational diagnostics, no timeout, and no summary error.
 - No new Goal 6 capability item is claimed by this refactor; junction/reparse, `dirKey`, broader redirected known folders, and ACL-denied-path work remain unchecked.
 
+Smoke receipt from 2026-05-24 Windows HTTP sink validation:
+
+- Added a local loopback HTTP receiver to `scripts\windows-smoke.ps1`; no external ingest service is required.
+- The smoke generates a temporary project fixture, supplies a generated bearer token through `BUMBLEBEE_SMOKE_HTTP_TOKEN`, and verifies the receiver sees valid bearer auth without writing the token to the redacted summary.
+- `scan --profile project --output http` completed successfully against the local receiver; the receiver saw 2 requests, 0 auth failures, 1 package record, and 1 `scan_summary`.
+- The HTTP `scan_summary` had `status=complete`, `profile=project`, `http_batches_attempted=1`, `http_batches_succeeded=1`, `http_last_status=200`, and no raw received NDJSON was written to the repo.
+- The same smoke run also preserved the real-profile baseline proof: 9 roots, 3 browser extension roots, 1,042 package records, 0 findings, 5 duplicates, 4 informational diagnostics, no timeout, and no summary error.
+
 Use `powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1` for
 future real-profile validation runs. The script builds into `%TEMP%`, runs the
 core Windows smoke checks, keeps raw NDJSON outside the repo, and writes only
@@ -268,7 +276,7 @@ Known gaps from the smoke run:
 - [x] Run a real-profile MCP smoke on a machine with a Windows Claude Desktop config root present.
 - [ ] Decide whether operator-facing docs should clarify that `diagnostics_count` includes informational diagnostics, not only warnings or errors.
 - [x] Add a redacted smoke-test receipt pattern for future Windows validation runs so raw NDJSON inventory is never checked in.
-- [ ] Keep the remaining browser families, HTTP sink, and known-limitations Goal 12 items open until separately exercised.
+- [ ] Keep the remaining browser families and known-limitations Goal 12 items open until separately exercised.
 
 ## Goal 13: Keep The Fork Easy To Update
 
