@@ -104,6 +104,10 @@ const (
 // never read from a CLI literal — only from an environment variable
 // named by --device-id-env — to avoid leaking it through the process
 // list.
+//
+// Username and UID identify the scanner process account. On POSIX systems,
+// UID is the numeric user id string. On Windows, UID is the Windows user SID
+// string returned by Go's os/user package when user lookup succeeds.
 type Endpoint struct {
 	Hostname string `json:"hostname"`
 	OS       string `json:"os"`

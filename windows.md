@@ -178,15 +178,29 @@ Receipt from 2026-05-24 Windows walker safety hardening:
 
 ## Goal 7: Normalize Windows Endpoint Identity
 
-- [ ] Decide whether `endpoint.uid` should contain a Windows SID.
-- [ ] Update docs so downstream consumers do not assume numeric Unix UIDs.
+- [x] Decide whether `endpoint.uid` should contain a Windows SID.
+- [x] Update docs so downstream consumers do not assume numeric Unix UIDs.
 - [ ] Verify `endpoint.username` shape for local, domain, and Azure AD users.
-- [ ] Keep `endpoint.device_id` as the preferred stable identity.
-- [ ] Document Windows device ID provisioning through environment variables.
-- [ ] Add tests around endpoint fields that are stable on Windows.
+- [x] Keep `endpoint.device_id` as the preferred stable identity.
+- [x] Document Windows device ID provisioning through environment variables.
+- [x] Add tests around endpoint fields that are stable on Windows.
 
 Why: Windows identity is not POSIX UID-based. The schema can remain compatible,
 but the meaning needs to be clear.
+
+Receipt: Windows endpoint identity keeps the shared endpoint schema unchanged.
+`endpoint.uid` is the Windows user SID returned by Go `os/user` for the
+scanner process when user lookup succeeds; the Windows fallback intentionally
+leaves `uid` empty rather than emitting Go's `os.Getuid()` value of `-1`.
+`endpoint.username` remains the scanner-process account name, but the exact
+shape is account-provider dependent and still needs broader local, domain, and
+Azure AD validation before that checklist item is closed. `endpoint.device_id`
+remains the preferred stable machine correlation key and is populated only from
+the environment variable named by `--device-id-env`. Windows operators should
+provision that value from an existing fleet identity such as MDM, RMM, EDR,
+Microsoft Entra, Intune, or a provisioning script. Bumblebee must not
+automatically derive `device_id` from `MachineGuid`, SMBIOS UUID, hostname,
+registry state, Entra state, Intune state, or hardware identifiers.
 
 ## Goal 8: Add Windows Deployment Documentation
 
@@ -350,10 +364,11 @@ Known limitations / current support boundary:
   reparse-point skipping, junction loop safety, and ACL-denied diagnostics are
   implemented. Broader OneDrive/redirected-known-folder behavior remains open
   Goal 6 work.
-- Endpoint identity boundary: no Windows identity semantics are finalized yet.
-  `endpoint.device_id` should remain the preferred stable identity, and
-  `endpoint.uid`, username shape, and Windows device ID provisioning still need
-  Goal 7 documentation and tests.
+- Endpoint identity boundary: Windows `endpoint.uid` is documented as the
+  scanner-process SID, and `endpoint.device_id` remains the preferred stable
+  machine identity supplied through `--device-id-env`. Broader
+  `endpoint.username` shape validation across local, domain, and Azure AD
+  users remains open Goal 7 work.
 - Deployment/docs boundary: Task Scheduler, Intune/RMM/SCCM, incident-response,
   recurring baseline, file/log-shipper, HTTPS secret, permission, cadence, and
   verification guidance are not written yet. README and user-facing docs should

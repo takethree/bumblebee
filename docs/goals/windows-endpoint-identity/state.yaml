@@ -1,0 +1,310 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Endpoint Identity"
+  slug: "windows-endpoint-identity"
+  kind: existing_plan
+  tranche: "Normalize Windows endpoint identity semantics for the compatibility layer."
+  status: active
+  oracle:
+    signal: "Windows endpoint identity behavior is source-backed, tested, and documented without schema drift or automatic device fingerprinting."
+    cadence: "after identity source validation, after implementation, and at final audit"
+    final_proof: "Endpoint tests pass, windows.md Goal 7 records the decision, no public README/schema expansion occurs, and the branch is pushed."
+  intake:
+    original_request: "$goalbuddy:goal-prep after the Windows endpoint identity research plan."
+    interpreted_outcome: "Prepare a GoalBuddy board to implement the Windows endpoint identity slice carefully."
+    input_shape: existing_plan
+    audience: "Maintainer of the TakeThree Windows compatibility fork"
+    authority: approved
+    proof_type: test
+    completion_proof: "Tests and docs prove Windows endpoint identity semantics while preserving the shared endpoint record shape."
+    likely_misfire: "Collecting Windows device fingerprints automatically or changing schema semantics beyond a compatibility-layer clarification."
+    blind_spots_considered:
+      - "Windows user lookup behavior should be source-verified before implementation."
+      - "device_id should remain operator supplied, not inferred from MachineGuid, SMBIOS, Entra, or hostname."
+      - "os.Getuid fallback may be misleading on Windows if os/user lookup fails."
+      - "README and broader user-facing docs should stay untouched until later documentation goals."
+    existing_plan_facts:
+      - "Best Windows uid attribute is the Windows user SID returned by Go os/user.Current().Uid."
+      - "Best Windows username attribute is Go os/user.Current().Username, typically SAM-compatible DOMAIN\\user or MACHINE\\user."
+      - "Best Windows device_id source is operator-provisioned fleet identity supplied via --device-id-env."
+      - "Do not auto-read registry, SMBIOS UUID, MachineGuid, Entra state, or hardware identifiers during scans."
+      - "No endpoint JSON schema version bump is intended."
+      - "Use the local verified Go executable if go is not on PATH."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-endpoint-identity"
+    note: "npx/npm is not available on PATH in this shell, so the local board could not be started during goal prep. File-backed board is ready."
+
+active_task: T004
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: low
+    objective: "Validate the proposed Windows endpoint identity contract against current code, tests, and authoritative Windows/Go sources."
+    inputs:
+      - "docs/goals/windows-endpoint-identity/goal.md"
+      - "internal/endpoint"
+      - "internal/model"
+      - "cmd/bumblebee"
+      - "docs/state-model.md"
+      - "windows.md Goal 7"
+      - "Official Go os/user docs/source"
+      - "Microsoft SID, Entra/Intune, and device identifier documentation"
+    constraints:
+      - "Read-only."
+      - "Do not edit repo files."
+      - "Use authoritative sources and local implementation evidence."
+      - "Call out source conflicts instead of guessing."
+      - "Do not inspect or collect sensitive local identity values beyond command shapes needed for verification."
+    expected_output:
+      - "Current endpoint behavior map"
+      - "Source-backed Windows username, uid, and device_id recommendations"
+      - "Risk assessment for Windows os/user fallback behavior"
+      - "Exact Worker package with allowed files, verify commands, and stop conditions"
+    receipt:
+      result: done
+      summary: "Validated the Windows endpoint identity plan against current code, tests, and official Go/Microsoft sources."
+      evidence:
+        - "internal/endpoint/endpoint.go: endpoint.Current uses os/user.Current for username and uid, but falls back to strconv.Itoa(os.Getuid()) on lookup failure."
+        - "internal/model/model.go: endpoint JSON shape is hostname, os, arch, username, uid, and optional device_id."
+        - "cmd/bumblebee/main.go: device_id is supplied only through --device-id-env and resolveDeviceID trims/missing/empty env values."
+        - "docs/state-model.md: endpoint.device_id is the preferred stable endpoint identity, while username and uid identify the scanner process."
+        - "windows.md Goal 7: all Windows endpoint identity checklist items are currently open."
+        - "https://pkg.go.dev/os/user"
+        - "https://go.dev/src/os/user/lookup_windows.go"
+        - "https://pkg.go.dev/os"
+        - "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-identifiers"
+        - "https://learn.microsoft.com/en-us/entra/identity/devices/troubleshoot-device-dsregcmd"
+        - "https://learn.microsoft.com/en-us/graph/api/resources/device?view=graph-rest-1.0"
+        - "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-computersystemproduct"
+      facts:
+        - "Go os/user documents User.Uid as a Windows SID string and Username as the login name."
+        - "Go's Windows os/user source gets the current token user SID string and a NameSamCompatible username."
+        - "Go os.Getuid returns -1 on Windows, so the current fallback can emit a misleading fake uid if os/user.Current fails on Windows."
+        - "Microsoft documents SIDs as unique identifiers for accounts/groups/process security context and says account names are mapped internally to SIDs."
+        - "Microsoft Entra dsregcmd exposes DeviceId for joined/hybrid joined devices, and Microsoft Graph device.deviceId is a unique Azure Device Registration Service identifier."
+        - "SMBIOS UUID exists through Win32_ComputerSystemProduct.UUID, but Microsoft documents an all-zero value when unavailable, making it unsuitable as an automatic default."
+      recommendation:
+        - "Keep endpoint.uid as the Go-provided Windows SID when os/user.Current succeeds."
+        - "Keep endpoint.username as the Go-provided scanner-process login name; document that Windows shape is account-provider dependent and commonly DOMAIN\\user, MACHINE\\user, AzureAD\\user, or service-account shaped."
+        - "Keep endpoint.device_id operator-supplied through --device-id-env only; recommend MDM/RMM/EDR/Entra/Intune asset IDs in docs."
+        - "Do not auto-read MachineGuid, SMBIOS UUID, Entra state, Intune, registry, hostname, or hardware identifiers."
+      risks:
+        - "The current fallback can emit endpoint.uid=-1 on Windows if os/user.Current fails."
+        - "Overasserting a fixed username format in tests could fail on service accounts or hosted CI."
+      worker_package:
+        objective: "Implement a Windows-safe endpoint uid fallback, add focused endpoint tests, and update docs/windows.md with source-backed Windows identity semantics."
+        allowed_files:
+          - "internal/endpoint/endpoint.go"
+          - "internal/endpoint/uid_windows.go"
+          - "internal/endpoint/uid_nonwindows.go"
+          - "internal/endpoint/endpoint_windows_test.go"
+          - "internal/model/model.go"
+          - "docs/state-model.md"
+          - "windows.md"
+        verify:
+          - "C:\\Users\\bbutner\\AppData\\Local\\Programs\\bumblebee-tools\\go1.26.3\\go\\bin\\go.exe test ./internal/endpoint ./cmd/bumblebee"
+          - "git diff --check -- internal/endpoint internal/model/model.go docs/state-model.md windows.md"
+          - "rg -n \"Windows SID|device_id|endpoint.uid|endpoint.username|--device-id-env|MachineGuid|SMBIOS|Entra|Intune\" windows.md docs/state-model.md internal/endpoint internal/model/model.go"
+          - "git diff --stat"
+        stop_if:
+          - "Need endpoint JSON schema changes."
+          - "Need automatic Windows machine identifier collection."
+          - "Need README or broad user-facing support-doc changes."
+          - "Need parser, scanner, sink, root-discovery, or record_id changes."
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Approve the bounded implementation package for Windows endpoint identity."
+    inputs:
+      - "T001 receipt"
+      - "docs/goals/windows-endpoint-identity/goal.md"
+      - "The researched implementation plan from chat"
+    constraints:
+      - "Read-only."
+      - "Reject schema changes unless Scout proves they are necessary."
+      - "Reject automatic Windows machine identifier collection."
+      - "Reject README or broad user-facing support-doc changes."
+      - "Reject changes that diverge parser, sink, scanner, or record identity behavior."
+    expected_output:
+      - "approved | revise | blocked"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify commands"
+      - "stop_if conditions"
+      - "Exact documentation wording constraints"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      worker_objective: "Implement a Windows-safe endpoint uid fallback, add focused endpoint tests, and update docs/windows.md with source-backed Windows identity semantics."
+      allowed_files:
+        - "internal/endpoint"
+        - "internal/model/model.go"
+        - "docs/state-model.md"
+        - "windows.md"
+      verify:
+        - "C:\\Users\\bbutner\\AppData\\Local\\Programs\\bumblebee-tools\\go1.26.3\\go\\bin\\go.exe test ./internal/endpoint ./cmd/bumblebee"
+        - "git diff --check -- internal/endpoint internal/model/model.go docs/state-model.md windows.md"
+        - "rg -n \"Windows SID|device_id|endpoint.uid|endpoint.username|--device-id-env|MachineGuid|SMBIOS|Entra|Intune\" windows.md docs/state-model.md internal/endpoint internal/model/model.go"
+        - "git diff --stat"
+      stop_if:
+        - "Need endpoint JSON schema changes."
+        - "Need automatic Windows machine identifier collection."
+        - "Need README or broad user-facing support-doc changes."
+        - "Need parser, scanner, sink, root-discovery, or record_id changes."
+        - "Verification fails twice for the same reason."
+      wording_constraints:
+        - "State that Windows endpoint.uid is the Go-provided Windows user SID for the scanner process when user lookup succeeds."
+        - "State that endpoint.username is scanner-process identity and Windows account shape varies by account provider."
+        - "State that endpoint.device_id remains the stable machine correlation key and is supplied through --device-id-env."
+        - "Recommend operator-provisioned MDM/RMM/EDR/Entra/Intune asset IDs and do not recommend automatic MachineGuid or SMBIOS collection."
+        - "Leave local, domain, and Azure AD username shape as partly verified unless live evidence covers all three."
+      rationale: "This is the largest safe compatibility-layer slice: it fixes the Windows fake uid fallback risk, documents Windows identity semantics, and verifies behavior without changing schema or collecting device fingerprints."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement the approved Windows endpoint identity package."
+    allowed_files:
+      - "internal/endpoint/endpoint.go"
+      - "internal/endpoint/uid_windows.go"
+      - "internal/endpoint/uid_nonwindows.go"
+      - "internal/endpoint/endpoint_windows_test.go"
+      - "internal/model/model.go"
+      - "docs/state-model.md"
+      - "windows.md"
+    verify:
+      - "C:\\Users\\bbutner\\AppData\\Local\\Programs\\bumblebee-tools\\go1.26.3\\go\\bin\\go.exe test ./internal/endpoint ./cmd/bumblebee"
+      - "git diff --check -- internal/endpoint internal/model/model.go docs/state-model.md windows.md"
+      - "rg -n \"Windows SID|device_id|endpoint.uid|endpoint.username|--device-id-env|MachineGuid|SMBIOS|Entra|Intune\" windows.md docs/state-model.md internal/endpoint internal/model/model.go"
+      - "git diff --stat"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Need endpoint schema version or JSON field changes."
+      - "Need automatic collection of Windows registry, SMBIOS, MachineGuid, Entra, Intune, hostname-derived, or hardware identifiers."
+      - "Need README or broad user-facing docs changes."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      summary: "Implemented Windows endpoint identity semantics without changing the endpoint schema or adding automatic device fingerprinting."
+      changed_files:
+        - "internal/endpoint/endpoint.go"
+        - "internal/endpoint/uid_windows.go"
+        - "internal/endpoint/uid_nonwindows.go"
+        - "internal/endpoint/endpoint_windows_test.go"
+        - "internal/model/model.go"
+        - "docs/state-model.md"
+        - "windows.md"
+      commands:
+        - command: "C:\\Users\\bbutner\\AppData\\Local\\Programs\\bumblebee-tools\\go1.26.3\\go\\bin\\go.exe test ./internal/endpoint ./cmd/bumblebee"
+          status: pass
+        - command: "git diff --check -- internal/endpoint internal/model/model.go docs/state-model.md windows.md"
+          status: pass
+        - command: "rg -n \"Windows SID|device_id|endpoint.uid|endpoint.username|--device-id-env|MachineGuid|SMBIOS|Entra|Intune\" windows.md docs/state-model.md internal/endpoint internal/model/model.go"
+          status: pass
+        - command: "git diff --stat"
+          status: pass
+      evidence:
+        - "Windows fallbackUID returns empty instead of os.Getuid() -1 when os/user lookup fails."
+        - "Non-Windows fallbackUID preserves the existing os.Getuid fallback behavior."
+        - "Windows endpoint tests assert username is present, uid is a SID, and uid is not -1."
+        - "docs/state-model.md documents Windows uid as a SID and device_id as operator-supplied."
+        - "windows.md records the Goal 7 identity decision and leaves broader username-shape validation open."
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: low
+    objective: "Commit and push the verified Windows endpoint identity changes."
+    allowed_files:
+      - "internal/endpoint/endpoint.go"
+      - "internal/endpoint/uid_windows.go"
+      - "internal/endpoint/uid_nonwindows.go"
+      - "internal/endpoint/endpoint_windows_test.go"
+      - "internal/model/model.go"
+      - "docs/state-model.md"
+      - "windows.md"
+      - "docs/goals/windows-endpoint-identity/goal.md"
+      - "docs/goals/windows-endpoint-identity/state.yaml"
+    verify:
+      - "git status --short"
+      - "git log --oneline --decorate -1"
+    stop_if:
+      - "Unrelated dirty files appear."
+      - "Implementation verification did not pass or is not recorded."
+      - "Commit would include files outside the approved implementation and GoalBuddy control files."
+      - "Push to origin/windows/compat-layer fails."
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Audit whether the Windows endpoint identity tranche is complete."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "windows.md Goal 7"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if endpoint identity semantics are unsourced, untested, or broader than the compatibility layer."
+      - "Reject completion if README or endpoint schema changed without explicit approval."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Evidence mapped to the oracle"
+      - "Missing evidence or next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: clean_at_prep
+  last_verification:
+    result: unknown
+    task: null
+    commands: []
