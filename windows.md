@@ -282,7 +282,7 @@ Known gaps from the smoke run:
 - [x] Avoid Windows-only semantic changes to existing profile meanings.
 - [x] Add tests that prove Windows behavior without weakening macOS/Linux tests.
 - [x] Keep Windows docs additive instead of rewriting existing macOS/Linux docs.
-- [ ] Structure commits so CI/release, explicit-root support, baseline defaults, browser roots, and docs can be reviewed separately.
+- [x] Structure commits so CI/release, explicit-root support, baseline defaults, browser roots, and docs can be reviewed separately.
 - [ ] Rebase regularly from upstream `main` while Windows support is still fork-only.
 - [ ] Open upstream PRs in small slices when possible.
 - [ ] Treat conflicts in shared parser/schema/output code as a warning sign that the compatibility layer is leaking.
@@ -290,6 +290,27 @@ Known gaps from the smoke run:
 Why: the fork should continue receiving upstream parser, schema, threat-catalog,
 and safety improvements with minimal conflict. The durable boundary is platform
 discovery and deployment guidance, not a separate Windows scanner.
+
+Current branch model:
+
+- `upstream/main` is the Perplexity source of truth.
+- `origin/windows/compat-layer` is the TakeThree-maintained Windows fork branch.
+- Local `main` should remain a clean mirror of `upstream/main`.
+- Local `windows/compat-layer` should track `origin/windows/compat-layer`.
+- Upstream PRs to Perplexity are optional and not part of the current workflow.
+
+Routine update workflow:
+
+```powershell
+git fetch upstream
+git switch main
+git merge --ff-only upstream/main
+git switch windows/compat-layer
+git rebase main
+go test ./cmd/bumblebee ./internal/...
+powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1
+git push --force-with-lease origin windows/compat-layer
+```
 
 Maintenance receipt from 2026-05-24 base-code cleanup:
 
