@@ -8,7 +8,7 @@ goal:
   slug: "windows-minimum-support"
   kind: existing_plan
   tranche: "Document the minimum Windows support floor in windows.md without broadening public support claims."
-  status: active
+  status: done
   oracle:
     signal: "windows.md records a source-backed Windows support floor, checks the Goal 1 minimum-version item, and keeps broader support claims constrained."
     cadence: "after source verification, after docs update, and at final audit"
@@ -67,7 +67,7 @@ visual_board:
     command: "npx goalbuddy board docs/goals/windows-minimum-support"
     note: "npx returned through Socket Firewall without starting the board: failed to fetch https://raw.githubusercontent.com/tolibear/goalbuddy/main/extend/catalog.json (HTTP 404). File-backed board is ready."
 
-active_task: T004
+active_task: null
 
 tasks:
   - id: T001
@@ -190,8 +190,17 @@ tasks:
     receipt:
       result: done
       summary: "Updated windows.md with the source-backed Windows minimum support policy and constrained compatibility-layer support boundary."
+      changed_files:
+        - "windows.md"
       files_changed:
         - "windows.md"
+      commands:
+        - command: "git diff --check -- windows.md"
+          status: pass
+        - command: "rg -n \"minimum supported|Windows 10|Windows 11|Windows Server|windows-latest|arm64|amd64|LTSC|ESU|Go 1.25\" windows.md"
+          status: pass
+        - command: "git diff --stat"
+          status: pass
       evidence:
         - "Goal 1 minimum-supported Windows item is checked."
         - "windows.md separates the Go 1.25 runtime floor from the supported operator target."
@@ -208,7 +217,7 @@ tasks:
   - id: T004
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: low
     objective: "Commit and push the verified Windows support-floor docs update."
     allowed_files:
@@ -223,12 +232,36 @@ tasks:
       - "Implementation verification did not pass or is not recorded."
       - "Commit would include files outside windows.md and GoalBuddy control files."
       - "Push to origin/windows/compat-layer fails."
-    receipt: null
+    receipt:
+      result: done
+      summary: "Committed and pushed the verified Windows support-floor docs update."
+      commit: "4df6685 docs: document Windows support floor"
+      branch: "windows/compat-layer"
+      remote: "origin"
+      changed_files:
+        - "windows.md"
+        - "docs/goals/windows-minimum-support/goal.md"
+        - "docs/goals/windows-minimum-support/state.yaml"
+      commands:
+        - command: "git add windows.md docs\\goals\\windows-minimum-support\\goal.md docs\\goals\\windows-minimum-support\\state.yaml"
+          status: pass
+        - command: "git commit -m \"docs: document Windows support floor\""
+          status: pass
+        - command: "git push origin windows/compat-layer"
+          status: pass
+      evidence:
+        - "git commit created 4df6685 with windows.md and GoalBuddy control files only."
+        - "git push origin windows/compat-layer advanced the remote branch from a463465 to 4df6685."
+      verification:
+        - command: "git status --short"
+          result: "only the GoalBuddy completion receipt update remained after commit/push"
+        - command: "git log --oneline --decorate -1"
+          result: "4df6685 docs: document Windows support floor"
 
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: done
     reasoning_hint: high
     objective: "Audit whether the Windows minimum-support documentation tranche is complete."
     inputs:
@@ -246,11 +279,35 @@ tasks:
       - "full_outcome_complete: true | false"
       - "Evidence mapped to the oracle"
       - "Missing evidence or next task if not complete"
-    receipt: null
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "Final audit passed for the docs-only Windows minimum support tranche."
+      oracle_evidence:
+        - "Authoritative source facts were verified against Go, GitHub runner-images, and Microsoft lifecycle pages."
+        - "windows.md checks Goal 1's minimum-supported Windows versions item."
+        - "windows.md records the runtime floor, validated CI target, operator support claim, Windows 10 caveat, and amd64/arm64 artifact-validation scope."
+        - "The known-limitations platform boundary no longer says support is unknown."
+        - "README.md, code, CI, GoReleaser config, deployment docs, and scanner behavior were not changed."
+        - "Branch was pushed to origin/windows/compat-layer."
+      verification:
+        - command: "git diff --check -- windows.md"
+          result: "pass; Git reported only the LF-to-CRLF working-copy warning before commit."
+        - command: "rg -n \"minimum supported|Windows 10|Windows 11|Windows Server|windows-latest|arm64|amd64|LTSC|ESU|Go 1.25\" windows.md"
+          result: "pass"
+        - command: "git diff --stat"
+          result: "pass; implementation diff was limited to windows.md before GoalBuddy receipt update."
+        - command: "git push origin windows/compat-layer"
+          result: "pass"
 
 checks:
   dirty_fingerprint: unknown
   last_verification:
-    result: unknown
-    task: null
-    commands: []
+    result: pass
+    task: T999
+    commands:
+      - "git diff --check -- windows.md"
+      - "rg -n \"minimum supported|Windows 10|Windows 11|Windows Server|windows-latest|arm64|amd64|LTSC|ESU|Go 1.25\" windows.md"
+      - "git diff --stat"
+      - "git push origin windows/compat-layer"
