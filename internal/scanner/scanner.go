@@ -72,7 +72,7 @@ func isExpectedAccessError(err error) bool {
 		}
 	}
 
-	return false
+	return isPlatformExpectedAccessError(err)
 }
 
 // isMissingPathError reports whether err is a "no such file or directory"

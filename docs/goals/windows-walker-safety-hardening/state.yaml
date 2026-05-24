@@ -1,0 +1,266 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Walker Safety Hardening"
+  slug: "windows-walker-safety-hardening"
+  kind: existing_plan
+  tranche: "Harden Windows walker behavior around junctions, reparse points, and ACL-denied paths before adding more roots."
+  status: active
+  oracle:
+    signal: "Focused Windows tests and smoke verification prove reparse/junction safety and ACL-denied diagnostic behavior without changing shared scanner semantics."
+    cadence: "after prerequisite/toolchain recovery, after implementation, and at final audit"
+    final_proof: "Focused and broad Go tests pass, Windows smoke passes, windows.md records only proven Goal 6 items, and the branch is pushed."
+  intake:
+    original_request: "$goalbuddy:goal-prep after the Windows walker safety plan."
+    interpreted_outcome: "Prepare a GoalBuddy board for the next compatibility-layer walker hardening slice."
+    input_shape: existing_plan
+    audience: "Maintainer of the TakeThree Windows compatibility fork"
+    authority: approved
+    proof_type: test
+    completion_proof: "Tests, smoke output, windows.md receipts, and pushed commits prove the Windows walker safety tranche."
+    likely_misfire: "Expanding inventory scope or docs while leaving traversal safety weak or unverified."
+    blind_spots_considered:
+      - "The current shell did not find go, so verification needs a prerequisite recovery step."
+      - "Junction/reparse handling is safety-critical before adding more roots."
+      - "ACL-denied tests may be environment-sensitive and need an explicit blocker if Windows cannot enforce denial."
+      - "Goal 6 has multiple open items; only directly proven items should be checked."
+      - "This must stay a compatibility-layer change with no schema, parser, sink, CLI, profile, or root-kind drift."
+    existing_plan_facts:
+      - "Restore or install a reputable Go toolchain before implementation verification."
+      - "Add or verify Windows reparse/junction traversal guard in internal/walk."
+      - "Treat the reparse guard as the supplement to the non-Unix dirKey fallback."
+      - "Add tests for reparse/junction skip and loop safety."
+      - "Add tests for ACL-denied diagnostics if stable in this environment."
+      - "Update windows.md with only proven Goal 6 checkboxes and receipts."
+      - "Commit message after implementation should be similar to fix: harden Windows walker reparse handling."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: false
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-walker-safety-hardening"
+    note: "npx returned through Socket Firewall without starting the board: [sfw] Failed to prepare firewall binary; unable to fetch latest release and no valid cached release found. File-backed board is ready."
+
+active_task: T004
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: low
+    objective: "Recover or locate the Go toolchain and map the exact current walker/scanner test surface for this tranche."
+    inputs:
+      - "docs/goals/windows-walker-safety-hardening/goal.md"
+      - "windows.md Goal 6"
+      - "internal/walk"
+      - "internal/scanner"
+    constraints:
+      - "Read-only except for installing or locating prerequisites from reputable sources if needed."
+      - "Do not edit repo files."
+      - "Record source, version, and PATH/env setup for any Go toolchain used."
+      - "Prefer official Go distribution sources for installation."
+    expected_output:
+      - "go version and source"
+      - "Current relevant files/tests"
+      - "Whether ACL-denied test setup is feasible"
+      - "Any implementation risks before Worker starts"
+    receipt:
+      result: done
+      summary: "Recovered a verified official Go toolchain and confirmed Windows junction plus ACL-denial fixtures are feasible in temp directories."
+      go:
+        version: "go version go1.26.3 windows/amd64"
+        exe: "C:\\Users\\bbutner\\AppData\\Local\\Programs\\bumblebee-tools\\go1.26.3\\go\\bin\\go.exe"
+        source: "https://go.dev/dl/?mode=json"
+        archive: "go1.26.3.windows-amd64.zip"
+        sha256: "20d2ceafb4ed41b96b879010927b28bc92a5be57a7c1801ce365a9ca51d3224a"
+      commands:
+        - cmd: "go test ./internal/walk ./internal/scanner"
+          status: pass
+      findings:
+        - "Current walker skips directory symlinks and uses dirKey(path) on non-Unix; Windows-specific reparse/junction handling is not yet tested."
+        - "Current Windows walker tests cover sensitive subtree pruning but not junction/reparse loop safety."
+        - "Current scanner permission-denied tests skip on Windows; a Windows icacls fixture can enforce access denied in this workspace."
+        - "Temp junction probe succeeded with attributes Directory, ReparsePoint."
+        - "Temp ACL probe denied MEGASTAR\\bbutner read/execute access and Get-ChildItem failed with access denied, then cleanup restored permissions."
+      risks:
+        - "Verification commands must use the recovered Go executable or prepend its bin directory because go is not on PATH."
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Approve the largest safe Worker package for Windows walker safety hardening."
+    inputs:
+      - "T001 receipt"
+      - "docs/goals/windows-walker-safety-hardening/goal.md"
+      - "The proposed Goal 6B plan from chat"
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Preserve compatibility-layer boundaries."
+      - "Reject root expansion, ecosystem expansion, schema/output changes, and broad docs work."
+    expected_output:
+      - "approved | revise | blocked"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify commands"
+      - "stop_if conditions"
+      - "Whether ACL-denied testing is in the same Worker package or a separate follow-up"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      worker_objective: "Implement Windows reparse/junction traversal skipping and Windows ACL-denied diagnostic tests, update windows.md with only proven Goal 6 receipts, and verify with focused tests, broad tests, smoke, and diff check."
+      allowed_files:
+        - "internal/walk/**"
+        - "internal/scanner/**"
+        - "windows.md"
+      verify:
+        - "go test ./internal/walk ./internal/scanner"
+        - "go test ./cmd/bumblebee ./internal/..."
+        - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+        - "git diff --check -- internal/walk internal/scanner windows.md"
+      stop_if:
+        - "Need to edit files outside allowed_files."
+        - "Need schema, parser, sink, CLI, profile, root-kind, endpoint, deployment, WSL, all-users, or ecosystem changes."
+        - "Go toolchain cannot be recovered from a reputable source."
+        - "Junction/reparse behavior cannot be tested or reasoned about safely."
+        - "ACL-denied test setup is unstable after two attempts."
+        - "Verification fails twice for the same reason."
+      acl_denied_testing: "same Worker package"
+      rationale: "T001 proved toolchain, junction, and ACL fixtures are available. One bounded Worker can implement traversal safety plus matching diagnostics proof without expanding scanner scope."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement the approved Windows walker safety hardening package."
+    allowed_files:
+      - "internal/walk/**"
+      - "internal/scanner/**"
+      - "windows.md"
+    verify:
+      - "go test ./internal/walk ./internal/scanner"
+      - "go test ./cmd/bumblebee ./internal/..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check -- internal/walk internal/scanner windows.md"
+    stop_if:
+      - "Need to edit files outside allowed_files."
+      - "Need schema, parser, sink, CLI, profile, root-kind, endpoint, deployment, WSL, all-users, or ecosystem changes."
+      - "Go toolchain cannot be recovered from a reputable source."
+      - "Junction/reparse behavior cannot be tested or reasoned about safely."
+      - "ACL-denied test setup is unstable after two attempts."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "internal/walk/walk.go"
+        - "internal/walk/linked_windows.go"
+        - "internal/walk/linked_nonwindows.go"
+        - "internal/walk/walk_windows_test.go"
+        - "internal/scanner/scanner.go"
+        - "internal/scanner/access_windows.go"
+        - "internal/scanner/access_nonwindows.go"
+        - "internal/scanner/scanner_windows_test.go"
+        - "windows.md"
+      commands:
+        - cmd: "go test ./internal/walk ./internal/scanner"
+          status: pass
+        - cmd: "go test ./cmd/bumblebee ./internal/..."
+          status: pass
+        - cmd: "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+          status: pass
+        - cmd: "git diff --check -- internal/walk internal/scanner windows.md"
+          status: pass
+      smoke_summary: "C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-windows-smoke\\20260524-170204\\smoke-summary.redacted.json"
+      summary: "Added Windows reparse-point directory detection behind walker platform hooks, added Windows access-error classification for ACL-denied scans, added junction loop and ACL-denied diagnostics tests, and updated windows.md Goal 6 receipts/checkmarks."
+      evidence:
+        - "Official Go toolchain used: go1.26.3 windows/amd64 from go.dev with SHA-256 verification recorded in T001."
+        - "Windows junction tests prove reparse detection recognizes junctions and no children under outside or ancestor-loop junction paths are visited."
+        - "Windows ACL-denied scanner test uses icacls, keeps a healthy project package record, and asserts denied-path diagnostics are debug level."
+        - "Smoke summary status: baseline complete, 9 roots, 1042 package records, 0 findings, 5 duplicates, 4 diagnostics, no timeout, no summary error."
+        - "HTTP sink proof preserved: 2 requests, 0 auth failures, project scan_summary complete, last status 200."
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: low
+    objective: "Commit and push the verified Windows walker safety hardening changes."
+    allowed_files:
+      - "internal/walk/**"
+      - "internal/scanner/**"
+      - "windows.md"
+      - "docs/goals/windows-walker-safety-hardening/goal.md"
+      - "docs/goals/windows-walker-safety-hardening/state.yaml"
+    verify:
+      - "git status --short"
+      - "git log --oneline --decorate -1"
+    stop_if:
+      - "Unrelated dirty files appear."
+      - "Implementation verification did not pass or is not recorded."
+      - "Commit would include files outside the approved implementation and GoalBuddy control files."
+      - "Push to origin/windows/compat-layer fails."
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Audit whether the Windows walker safety tranche is complete."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "windows.md Goal 6"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if tests do not directly prove the checked Goal 6 items."
+      - "Reject completion if the implementation changes public schema, parser output, sink behavior, CLI, profile semantics, or root expansion."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Evidence mapped to the oracle"
+      - "Missing evidence or next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []

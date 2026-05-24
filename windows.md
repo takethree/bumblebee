@@ -113,18 +113,35 @@ profiles, and unreadable paths should surface through normal scanner diagnostics
 
 ## Goal 6: Harden The Windows Walker
 
-- [ ] Review Windows symlink, junction, and reparse point behavior.
-- [ ] Replace or supplement the non-Unix `dirKey` path fallback if needed.
-- [ ] Ensure deep scans do not loop through junctions.
+- [x] Review Windows symlink, junction, and reparse point behavior.
+- [x] Replace or supplement the non-Unix `dirKey` path fallback if needed.
+- [x] Ensure deep scans do not loop through junctions.
 - [x] Add Windows-specific excludes for high-cost or sensitive paths.
 - [x] Exclude Windows browser profile data that is not needed for extension inventory.
 - [x] Exclude credential and cloud-sync sensitive directories.
 - [ ] Account for OneDrive and redirected known folders.
-- [ ] Ensure ACL-denied paths produce diagnostics without failing healthy scans.
-- [ ] Add tests for inaccessible paths where Windows permits stable test setup.
+- [x] Ensure ACL-denied paths produce diagnostics without failing healthy scans.
+- [x] Add tests for inaccessible paths where Windows permits stable test setup.
 
 Why: the current walker has strong Unix/macOS assumptions around inode identity,
 TCC-style access errors, and home-directory noise.
+
+Receipt from 2026-05-24 Windows walker safety hardening:
+
+- Added a Windows reparse-point directory guard behind platform-specific walker
+  code so junctions and other directory links are skipped before descent, while
+  shared traversal, parser, schema, sink, profile, and root-kind behavior stays
+  unchanged.
+- Supplemented the non-Unix `dirKey` path fallback with the Windows
+  reparse-point guard; no record identity or output path semantics changed.
+- Added Windows junction tests proving a junction to an outside tree is not
+  descended into and a junction loop back to an ancestor does not hang the
+  walker.
+- Added a Windows `icacls`-backed ACL-denial scanner test proving a healthy
+  project scan still emits package records and reports the denied directory as
+  a structured `debug` diagnostic.
+- Broader redirected-known-folder policy remains unchecked; this tranche proves
+  traversal safety and ACL diagnostics only.
 
 ## Goal 7: Normalize Windows Endpoint Identity
 
@@ -290,9 +307,10 @@ Known limitations / current support boundary:
   domain, Azure AD, OneDrive, and redirected-profile discovery are not claimed;
   elevated deployment may still be needed operationally to read other users'
   profiles.
-- Walker/privacy boundary: Windows sensitive-path excludes are implemented, but
-  junction, symlink, reparse point, non-Unix `dirKey`, ACL-denied-path, and
-  broader OneDrive/redirected-known-folder behavior remain open Goal 6 work.
+- Walker/privacy boundary: Windows sensitive-path excludes, directory
+  reparse-point skipping, junction loop safety, and ACL-denied diagnostics are
+  implemented. Broader OneDrive/redirected-known-folder behavior remains open
+  Goal 6 work.
 - Endpoint identity boundary: no Windows identity semantics are finalized yet.
   `endpoint.device_id` should remain the preferred stable identity, and
   `endpoint.uid`, username shape, and Windows device ID provisioning still need

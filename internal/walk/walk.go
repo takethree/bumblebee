@@ -211,11 +211,11 @@ func walkOne(root string, excludes map[string]struct{}, seen map[string]struct{}
 			if isExcluded(path, d.Name(), excludes) {
 				return filepath.SkipDir
 			}
-			// Directory symlinks are never descended into. filepath.WalkDir
-			// does not follow them on its own, and we explicitly skip any
-			// directory-shaped symlink we encounter so the walker never
-			// crosses into an unrelated subtree by indirection.
-			if info, lerr := os.Lstat(path); lerr == nil && info.Mode()&os.ModeSymlink != 0 {
+			// Directory symlinks and platform-specific reparse dirs are
+			// never descended into. filepath.WalkDir does not follow
+			// ordinary symlinks on its own, and this keeps platform
+			// directory links from crossing into unrelated subtrees.
+			if shouldSkipLinkedDir(path) {
 				return filepath.SkipDir
 			}
 			// Symlink-loop guard via device+inode.
@@ -236,6 +236,14 @@ func walkOne(root string, excludes map[string]struct{}, seen map[string]struct{}
 		}
 		return nil
 	})
+}
+
+func shouldSkipLinkedDir(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeSymlink != 0 || isPlatformLinkedDir(info)
 }
 
 func normalizeExcludes(in []string) map[string]struct{} {
