@@ -18,12 +18,11 @@
 // baseline and project refuse bare-home roots (`$HOME`, `/Users/<name>`,
 // `/home/<name>`, `/`) outright. deep accepts them.
 //
-// --all-users expansion (baseline, project) lets a root-owned baseline
-// run enumerate per-user known subdirectories under /Users/<name>/ on
-// macOS without ever passing a bare home root. The
-// set of per-user subdirectories expanded is the same one a logged-in
-// user would resolve; only the home prefix is varied. System/Homebrew
-// roots are still included.
+// --all-users expansion (baseline, project) lets a privileged baseline
+// run enumerate per-user known subdirectories under each local user home
+// on platforms that support the expansion without ever passing a bare
+// home root. The set of per-user subdirectories expanded is the same one
+// a logged-in user would resolve; only the home prefix is varied.
 package main
 
 import (
@@ -41,11 +40,10 @@ import (
 // option here is preferred over growing resolveRoots' positional
 // arguments.
 type rootsOpts struct {
-	// AllUsers, when true on macOS, expands the baseline/project profile
-	// defaults across every real user home under /Users instead of only
-	// the current process owner's home. System/Homebrew roots are still
-	// included exactly once. Has no effect on Linux, where multi-user
-	// fleet runs are not a supported deployment shape.
+	// AllUsers, when true on supported platforms, expands the
+	// baseline/project profile defaults across every real user home
+	// instead of only the current process owner's home. Unsupported
+	// platforms fall back to current-user defaults with a diagnostic note.
 	AllUsers bool
 }
 
@@ -123,6 +121,9 @@ func resolveRoots(profile string, explicit []string, opts rootsOpts) (roots []sc
 // scan profile even when the path shape is unfamiliar.
 func classifyRoot(path, profile string) string {
 	p := filepath.ToSlash(filepath.Clean(path))
+	if kind, ok := classifyPlatformRoot(p); ok {
+		return kind
+	}
 	switch {
 	case strings.HasSuffix(p, "/extensions") && containsAny(p, ".vscode", ".cursor", ".windsurf", ".vscodium"):
 		return model.RootKindEditorExtension
@@ -180,8 +181,11 @@ func isBroadHomeRoot(path string) bool {
 	if abs == "/" {
 		return true
 	}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		if abs == filepath.Clean(home) {
+	if isPlatformBroadHomeRoot(abs) {
+		return true
+	}
+	if home := userHomeDir(); home != "" {
+		if samePath(abs, filepath.Clean(home)) {
 			return true
 		}
 	}
@@ -254,6 +258,9 @@ func baselineHomeCandidates(home string) []scanner.Root {
 		add(filepath.Join(home, ".config", "Claude"), model.RootKindMCPConfig)
 		add(filepath.Join(home, ".config", "Claude Code"), model.RootKindMCPConfig)
 		add(filepath.Join(home, ".continue"), model.RootKindMCPConfig)
+	}
+	for _, r := range platformBaselineHomeCandidates(home) {
+		out = append(out, r)
 	}
 
 	// Browser extension trees. We point directly at the per-profile
@@ -339,7 +346,7 @@ func baselineDefaultRoots(opts rootsOpts) ([]scanner.Root, []string) {
 
 	present, filterNotes := filterExistingRoots(candidates)
 	notes = append(notes, filterNotes...)
-	if opts.AllUsers && runtime.GOOS == "darwin" {
+	if opts.AllUsers && allUsersExpansionSupported() {
 		notes = append(notes, allUsersExpansionNote())
 	} else if opts.AllUsers {
 		notes = append(notes, allUsersUnsupportedNote())
@@ -357,7 +364,7 @@ func projectDefaultRoots(opts rootsOpts) ([]scanner.Root, []string) {
 		candidates = append(candidates, projectHomeCandidates(home)...)
 	}
 	present, notes := filterExistingRoots(candidates)
-	if opts.AllUsers && runtime.GOOS == "darwin" {
+	if opts.AllUsers && allUsersExpansionSupported() {
 		notes = append(notes, allUsersExpansionNote())
 	} else if opts.AllUsers {
 		notes = append(notes, allUsersUnsupportedNote())
@@ -366,22 +373,20 @@ func projectDefaultRoots(opts rootsOpts) ([]scanner.Root, []string) {
 }
 
 // homesForExpansion returns the list of home directories whose per-user
-// candidate sets should be expanded for this run. Under --all-users on
-// macOS, it is every real /Users/<name>/ home; otherwise it is the
+// candidate sets should be expanded for this run. Under --all-users on a
+// supported platform, it is every real local user home; otherwise it is the
 // current process owner's home (or empty when that cannot be
-// determined). Linux honors only the current home — multi-user
-// fanout under a single root-owned scan is currently a macOS-only
-// convenience.
+// determined). Unsupported platforms honor only the current home.
 func homesForExpansion(opts rootsOpts) []string {
-	if opts.AllUsers && runtime.GOOS == "darwin" {
+	if opts.AllUsers && allUsersExpansionSupported() {
 		homes := allUsersHomes(usersDirOverride())
 		if len(homes) > 0 {
 			return homes
 		}
-		// Fall back to the current home if /Users enumeration found
+		// Fall back to the current home if profile enumeration found
 		// nothing usable — never silently degrade to no homes.
 	}
-	if home, _ := os.UserHomeDir(); home != "" {
+	if home := userHomeDir(); home != "" {
 		return []string{home}
 	}
 	return nil
@@ -400,18 +405,20 @@ func allUsersUnsupportedNote() string {
 	return fmt.Sprintf("--all-users expansion: not supported on %s; using current user's default roots", runtime.GOOS)
 }
 
-// usersDirEffective returns the /Users-style parent directory currently
-// in effect. The override (set in tests) wins; otherwise /Users.
+// usersDirEffective returns the platform user-home parent directory
+// currently in effect. The override (set in tests) wins; otherwise the
+// platform default is used.
 func usersDirEffective() string {
 	if d := usersDirOverride(); d != "" {
 		return d
 	}
-	return "/Users"
+	return defaultUsersDir()
 }
 
-// usersDirOverride returns a test-only override of the /Users parent
+// usersDirOverride returns a test-only override of the user-home parent
 // directory. Production callers leave BUMBLEBEE_USERS_DIR unset and the
-// override resolves to the empty string, which means "use /Users".
+// override resolves to the empty string, which means "use the platform
+// default".
 //
 // The override is read from an environment variable rather than wired
 // through resolveRoots' signature so tests do not have to thread a
@@ -422,25 +429,26 @@ func usersDirOverride() string {
 }
 
 // allUsersHomes enumerates real per-user home directories under the
-// given /Users-style parent. It is intentionally simple: it lists the
-// directory, drops well-known service/system entries and anything that
-// is not a plain directory, and returns absolute paths. We do not call
-// Directory Services or read /etc/passwd; on a typical macOS host the
-// /Users directory listing is authoritative for "users who have a home
-// on this box."
+// given platform profile parent. It is intentionally simple: it lists
+// the directory, drops well-known service/system entries and anything
+// that is not a plain directory, and returns absolute paths. We do not
+// call Directory Services, read /etc/passwd, query the registry, or
+// enumerate SIDs; this mirrors Bumblebee's bounded macOS behavior rather
+// than introducing a broader account-discovery model.
 //
 // Filtering rules (lowercased basename match unless noted):
 //
-//   - Shared, Guest, root, Deleted Users — Apple/service entries.
-//   - .localized and any other dotfile — hidden /Users entries are not
-//     user homes.
-//   - Entries that are not directories (e.g. .DS_Store).
+//   - Shared, Guest, root, Deleted Users: Apple/service entries.
+//   - Windows service/profile entries such as Public, Default, Default
+//     User, All Users, and desktop.ini.
+//   - Hidden/dot entries are not user homes.
+//   - Entries that are not directories.
 //
-// usersDir == "" defaults to /Users so callers do not need to special-
-// case the production path.
+// usersDir == "" defaults to the platform user-home parent so callers do
+// not need to special-case the production path.
 func allUsersHomes(usersDir string) []string {
 	if usersDir == "" {
-		usersDir = "/Users"
+		usersDir = usersDirEffective()
 	}
 	entries, err := os.ReadDir(usersDir)
 	if err != nil {
@@ -479,6 +487,9 @@ func isLikelyUserHomeName(name string) bool {
 	}
 	switch strings.ToLower(name) {
 	case "shared", "guest", "root", "deleted users":
+		return false
+	}
+	if isPlatformServiceUserHomeName(name) {
 		return false
 	}
 	return true
@@ -556,6 +567,7 @@ func browserExtensionCandidateRoots(home string) []string {
 			filepath.Join(home, ".waterfox"),
 		)
 	}
+	roots = append(roots, platformBrowserExtensionCandidateRoots(home)...)
 	return roots
 }
 

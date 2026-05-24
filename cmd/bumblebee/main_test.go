@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,6 +11,20 @@ import (
 
 	"github.com/perplexityai/bumblebee/internal/model"
 )
+
+func setTestHome(t *testing.T, home string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+		vol := filepath.VolumeName(home)
+		if vol != "" {
+			t.Setenv("HOMEDRIVE", vol)
+			t.Setenv("HOMEPATH", strings.TrimPrefix(home, vol))
+		}
+		return
+	}
+	t.Setenv("HOME", home)
+}
 
 func TestResolveDeviceIDUnsetFlag(t *testing.T) {
 	id, warn := resolveDeviceID("")
@@ -52,17 +68,31 @@ func TestResolveDeviceIDEmptyEnv(t *testing.T) {
 
 func TestIsBroadHomeRoot(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	broad := []string{
 		home,
 		home + "/",
-		"/",
-		"/Users",
-		"/Users/someone",
-		"/home",
-		"/home/someone",
-		"/root",
+	}
+	if runtime.GOOS == "windows" {
+		vol := filepath.VolumeName(home)
+		if vol == "" {
+			vol = "C:"
+		}
+		broad = append(broad,
+			vol+string(filepath.Separator),
+			filepath.Join(vol+string(filepath.Separator), "Users"),
+			filepath.Join(vol+string(filepath.Separator), "Users", "someone"),
+		)
+	} else {
+		broad = append(broad,
+			"/",
+			"/Users",
+			"/Users/someone",
+			"/home",
+			"/home/someone",
+			"/root",
+		)
 	}
 	for _, p := range broad {
 		if !isBroadHomeRoot(p) {
@@ -74,10 +104,20 @@ func TestIsBroadHomeRoot(t *testing.T) {
 		filepath.Join(home, "code"),
 		filepath.Join(home, "Developer"),
 		filepath.Join(home, ".vscode", "extensions"),
-		"/usr/local/lib",
-		"/opt/homebrew/lib",
-		"/Users/someone/code",
-		"/home/someone/code",
+	}
+	if runtime.GOOS == "windows" {
+		vol := filepath.VolumeName(home)
+		if vol == "" {
+			vol = "C:"
+		}
+		narrow = append(narrow, filepath.Join(vol+string(filepath.Separator), "Users", "someone", "code"))
+	} else {
+		narrow = append(narrow,
+			"/usr/local/lib",
+			"/opt/homebrew/lib",
+			"/Users/someone/code",
+			"/home/someone/code",
+		)
 	}
 	for _, p := range narrow {
 		if isBroadHomeRoot(p) {
@@ -94,7 +134,7 @@ func TestResolveRootsBaselineExcludesProjectTrees(t *testing.T) {
 		t.Skipf("profile defaults are darwin/linux specific")
 	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	codeDir := filepath.Join(home, "code")
 	if err := os.MkdirAll(codeDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -116,7 +156,7 @@ func TestResolveRootsBaselineExcludesProjectTrees(t *testing.T) {
 
 func TestResolveRootsProjectIncludesCodeDir(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	codeDir := filepath.Join(home, "code")
 	if err := os.MkdirAll(codeDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -138,7 +178,7 @@ func TestResolveRootsProjectIncludesCodeDir(t *testing.T) {
 
 func TestResolveRootsBaselineIncludesUserLocalPython(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	pyRoot := filepath.Join(home, ".local", "lib", "python3.12")
 	if err := os.MkdirAll(filepath.Join(pyRoot, "site-packages"), 0o755); err != nil {
 		t.Fatal(err)
@@ -166,7 +206,7 @@ func TestResolveRootsBaselineIncludesClaudeAndCodexMCPRoots(t *testing.T) {
 		t.Skipf("profile defaults are darwin/linux specific")
 	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	want := []string{
 		filepath.Join(home, ".claude"),
 		filepath.Join(home, ".codex"),
@@ -210,7 +250,7 @@ func TestResolveRootsBaselineSkipsAbsentClaudeCodexRoots(t *testing.T) {
 		t.Skipf("profile defaults are darwin/linux specific")
 	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	// Provide one unrelated default so the baseline run does not fail
 	// with "no default roots". `~/go` is not one of the MCP candidates
 	// under test, so its presence cannot mask the assertion below.
@@ -262,7 +302,7 @@ func TestClassifyRootClaudeCodexMCP(t *testing.T) {
 
 func TestResolveRootsBaselineRefusesBroadHome(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	_, _, err := resolveRoots(model.ProfileBaseline, []string{home}, rootsOpts{})
 	if err == nil {
 		t.Fatalf("expected refusal for baseline+%q", home)
@@ -274,7 +314,7 @@ func TestResolveRootsBaselineRefusesBroadHome(t *testing.T) {
 
 func TestResolveRootsProjectRefusesBroadHome(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	_, _, err := resolveRoots(model.ProfileProject, []string{home}, rootsOpts{})
 	if err == nil {
 		t.Fatalf("expected refusal for project+%q", home)
@@ -283,7 +323,7 @@ func TestResolveRootsProjectRefusesBroadHome(t *testing.T) {
 
 func TestResolveRootsDeepAllowsBroadHome(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	roots, _, err := resolveRoots(model.ProfileDeep, []string{home}, rootsOpts{})
 	if err != nil {
 		t.Fatalf("deep should accept broad home root: %v", err)
@@ -298,7 +338,7 @@ func TestResolveRootsDeepAllowsBroadHome(t *testing.T) {
 
 func TestResolveRootsDeepRequiresExplicitRoot(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	_, _, err := resolveRoots(model.ProfileDeep, nil, rootsOpts{})
 	if err == nil {
 		t.Fatalf("deep with no roots should error")
@@ -516,11 +556,11 @@ func TestResolveRootsAllUsersRejectsDeepProfile(t *testing.T) {
 }
 
 func TestResolveRootsAllUsersUnsupportedPlatformsNote(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("--all-users expands on darwin")
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		t.Skip("--all-users expands on this platform")
 	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	pyRoot := filepath.Join(home, ".local", "lib", "python3.12")
 	if err := os.MkdirAll(pyRoot, 0o755); err != nil {
 		t.Fatal(err)
@@ -645,11 +685,126 @@ func TestRunScanRejectsInvalidEcosystem(t *testing.T) {
 	}
 }
 
+func TestRunScanExplicitRootWithSpacesEmitsSummary(t *testing.T) {
+	for _, profile := range []string{model.ProfileProject, model.ProfileDeep} {
+		t.Run(profile, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "project root with spaces")
+			if err := os.MkdirAll(root, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			lockfile := filepath.Join(root, "package-lock.json")
+			if err := os.WriteFile(lockfile, []byte(`{
+  "lockfileVersion": 3,
+  "packages": {
+    "node_modules/lodash": {"version":"4.17.21"}
+  }
+}`), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out := filepath.Join(t.TempDir(), "inventory.ndjson")
+			code := runScan([]string{
+				"--profile", profile,
+				"--root", root,
+				"--output", "file",
+				"--output-file", out,
+			})
+			if code != 0 {
+				t.Fatalf("runScan exit code = %d, want 0", code)
+			}
+			data, err := os.ReadFile(out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+			if len(lines) < 2 {
+				t.Fatalf("expected package and scan_summary records, got %d lines: %s", len(lines), data)
+			}
+			var sawPackage bool
+			for _, line := range lines[:len(lines)-1] {
+				var r struct {
+					RecordType  string `json:"record_type"`
+					RecordID    string `json:"record_id"`
+					PackageName string `json:"package_name"`
+					ProjectPath string `json:"project_path"`
+					RootKind    string `json:"root_kind"`
+					SourceFile  string `json:"source_file"`
+				}
+				if err := json.Unmarshal([]byte(line), &r); err != nil {
+					t.Fatalf("bad package json: %v: %s", err, line)
+				}
+				if r.RecordType == model.RecordTypePackage && r.PackageName == "lodash" {
+					sawPackage = true
+					if r.RecordID == "" {
+						t.Fatal("package record_id missing")
+					}
+					if filepath.Clean(r.ProjectPath) != filepath.Clean(root) {
+						t.Fatalf("project_path = %q, want %q", r.ProjectPath, root)
+					}
+					if filepath.Clean(r.SourceFile) != filepath.Clean(lockfile) {
+						t.Fatalf("source_file = %q, want %q", r.SourceFile, lockfile)
+					}
+					wantRootKind := model.RootKindProject
+					if profile == model.ProfileDeep {
+						wantRootKind = model.RootKindUnknown
+					}
+					if r.RootKind != wantRootKind {
+						t.Fatalf("root_kind = %q, want %q", r.RootKind, wantRootKind)
+					}
+				}
+			}
+			if !sawPackage {
+				t.Fatalf("did not find lodash package record in %s", data)
+			}
+			var summary struct {
+				RecordType string `json:"record_type"`
+				Status     string `json:"status"`
+				Profile    string `json:"profile"`
+			}
+			if err := json.Unmarshal([]byte(lines[len(lines)-1]), &summary); err != nil {
+				t.Fatalf("bad summary json: %v: %s", err, lines[len(lines)-1])
+			}
+			if summary.RecordType != model.RecordTypeScanSummary || summary.Status != model.ScanStatusComplete || summary.Profile != profile {
+				t.Fatalf("summary = %+v, want complete scan_summary for %s", summary, profile)
+			}
+		})
+	}
+}
+
 func TestRunRootsRejectsUnknownProfile(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	code := runRoots([]string{"--profile", "scheduled"})
 	if code != 2 {
 		t.Fatalf("runRoots --profile=scheduled exit = %d, want 2 (unknown profile)", code)
 	}
+}
+
+func captureStdoutStderr(t *testing.T, fn func() int) (string, string, int) {
+	t.Helper()
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = stdoutW
+	os.Stderr = stderrW
+	code := fn()
+	_ = stdoutW.Close()
+	_ = stderrW.Close()
+	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+	stdoutBytes, err := io.ReadAll(stdoutR)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderrBytes, err := io.ReadAll(stderrR)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(stdoutBytes), string(stderrBytes), code
 }
