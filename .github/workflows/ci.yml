@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -26,6 +26,22 @@ jobs:
         with:
           go-version: "1.25"
           check-latest: true
+
+      # SHA-pinned to the v2 tag of msys2/setup-msys2. Windows race tests
+      # need a C compiler because Go's race detector requires cgo.
+      - uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
+        id: msys2
+        if: runner.os == 'Windows'
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: expose MSYS2 gcc
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: gofmt
         shell: bash
@@ -40,6 +56,9 @@ jobs:
       - name: go vet
         run: go vet ./...
 
+      - name: go test
+        run: go test ./...
+
       - name: go test (race)
         run: go test -race ./...
 
@@ -47,9 +66,14 @@ jobs:
         run: go build -buildvcs=false ./cmd/bumblebee
 
       - name: bumblebee selftest
+        shell: bash
         run: |
-          go build -buildvcs=false -o ./bumblebee ./cmd/bumblebee
-          ./bumblebee selftest
+          bin=./bumblebee
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            bin=./bumblebee.exe
+          fi
+          go build -buildvcs=false -o "$bin" ./cmd/bumblebee
+          "$bin" selftest
 
   govulncheck:
     name: govulncheck
