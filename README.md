@@ -47,6 +47,7 @@ know what they are looking for.
 | Go modules | `go` | `go.sum`, `go.mod` |
 | RubyGems | `rubygems` | `Gemfile.lock`, installed `*.gemspec` |
 | Composer | `packagist` | `composer.lock`, `vendor/composer/installed.json` |
+| NuGet | `nuget` | `packages.config`, `packages.lock.json` (`requested_spec` preserves lockfile requested ranges when present) |
 | MCP | `mcp` | JSON host configs: `mcp.json`, `.mcp.json`, `claude_desktop_config.json`, `mcp_config.json`, `mcp_settings.json`, `cline_mcp_settings.json`, plus `~/.gemini/settings.json` (Gemini CLI / Code Assist). Non-JSON configs (Codex `config.toml`, Continue YAML) are not parsed in v0.1. |
 | Editor extensions | `editor-extension` | VS Code, Cursor, Windsurf, VSCodium manifests |
 | Browser extensions | `browser-extension` | Chromium-family (`manifest.json`) and Firefox (`extensions.json`) per profile |
@@ -204,8 +205,9 @@ Not currently claimed on Windows:
 - User npm/global, Python, pipx/virtualenv, Ruby/Bundler, and Composer default
   roots.
 - Brave, Chromium, Vivaldi, LibreWolf, and Waterfox default browser roots.
-- Windows-native ecosystems such as NuGet, PowerShell modules, Chocolatey,
-  Scoop, winget/MSIX/AppX, and Visual Studio extensions.
+- Windows-native ecosystems beyond project/deep NuGet metadata, such as
+  PowerShell modules, Chocolatey, Scoop, winget/MSIX/AppX, and Visual Studio
+  extensions.
 - WSL package state. Run the Linux Bumblebee binary inside each distro until
   WSL behavior is explicitly defined.
 - Redirected known folders and broader OneDrive profile discovery.

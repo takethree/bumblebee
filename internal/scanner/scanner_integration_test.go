@@ -78,6 +78,21 @@ PLATFORMS
 }`)
 	writeFile(t, filepath.Join(root, "p-php", "vendor", "composer", "installed.json"), `{"packages":[{"name":"intercom/intercom-php","version":"5.0.2"}]}`)
 
+	// NuGet packages.config + packages.lock.json
+	writeFile(t, filepath.Join(root, "p-nuget", "packages.config"), `<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package id="Newtonsoft.Json" version="13.0.3" targetFramework="net472" />
+</packages>`)
+	writeFile(t, filepath.Join(root, "p-nuget", "packages.lock.json"), `{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "Serilog": {"type":"Direct","requested":"[3.1.1, )","resolved":"3.1.1","contentHash":"abc"},
+      "Serilog.Sinks.Console": {"type":"Transitive","resolved":"5.0.1","contentHash":"def"}
+    }
+  }
+}`)
+
 	// MCP config
 	writeFile(t, filepath.Join(root, "p-mcp", "mcp.json"), `{
   "mcpServers": {
@@ -182,6 +197,8 @@ PLATFORMS
 		"rubygems-gemfile-lock",
 		"composer-lock",
 		"composer-installed",
+		"nuget-packages-config",
+		"nuget-lockfile",
 		"mcp-config",
 		"editor-extension",
 		"browser-extension",
@@ -191,7 +208,7 @@ PLATFORMS
 			t.Errorf("missing source_type %q", st)
 		}
 	}
-	wantEcosystems := []string{"npm", "go", "rubygems", "packagist", "mcp", "editor-extension", "browser-extension"}
+	wantEcosystems := []string{"npm", "go", "rubygems", "packagist", "nuget", "mcp", "editor-extension", "browser-extension"}
 	for _, e := range wantEcosystems {
 		if !gotEcosystem[e] {
 			t.Errorf("missing ecosystem %q", e)
@@ -205,6 +222,9 @@ PLATFORMS
 		"go:github.com/example/foo",
 		"rubygems:intercom-rails",
 		"packagist:intercom/intercom-php",
+		"nuget:newtonsoft.json",
+		"nuget:serilog",
+		"nuget:serilog.sinks.console",
 		"mcp:@modelcontextprotocol/server-github",
 		"mcp:@example/gemini-search",
 		"editor-extension:ms-python.python",

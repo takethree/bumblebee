@@ -56,9 +56,10 @@ home directories and cannot be combined with explicit `--root` entries or
 
 Windows default roots do not currently claim user npm/global, Python,
 pipx/virtualenv, Ruby/Bundler, Composer, Brave, Chromium, Vivaldi, LibreWolf,
-Waterfox, WSL, redirected known folders, or Windows-native ecosystems such as
-NuGet, PowerShell modules, Chocolatey, Scoop, winget/MSIX/AppX, and Visual
-Studio extensions.
+Waterfox, WSL, redirected known folders, PowerShell modules, Chocolatey,
+Scoop, winget/MSIX/AppX, or Visual Studio extensions. NuGet project/deep
+metadata files are parsed when they appear under operator-supplied roots, but
+NuGet global package-cache baseline roots are not claimed.
 
 ## npm
 
@@ -258,6 +259,35 @@ References:
 
 - `composer.lock` format: <https://getcomposer.org/doc/01-basic-usage.md#commit-your-composer-lock-file-to-version-control>
 - `vendor/composer/installed.json` (Composer v2): <https://getcomposer.org/doc/articles/plugins.md>
+
+## NuGet
+
+Files read:
+
+- `packages.config` for legacy projects. Each `<package>` entry with both
+  `id` and `version` emits one high-confidence record.
+- `packages.lock.json` for PackageReference lock files. Each resolved
+  non-project dependency under `dependencies` emits one high-confidence
+  record. Direct and transitive dependencies populate `direct_dependency`;
+  transitive entries also set `install_scope=transitive`. When a lockfile
+  entry carries a `requested` range, that range is preserved in
+  `requested_spec` while `version` remains the resolved package version.
+
+The parser does not read `obj/project.assets.json` and does not walk the NuGet
+global package cache by default. Those sources are generated/cache state and
+need separate output-volume and installed-state decisions before they become
+baseline roots.
+
+`packages.config` records intentionally leave `direct_dependency` empty because
+the file does not reliably distinguish direct intent from resolved dependency
+state. If a project contains both `packages.config` and `packages.lock.json`,
+the same package/version can appear once per source file; that is
+source-accurate inventory rather than cross-source deduplication.
+
+References:
+
+- NuGet `packages.config`: <https://learn.microsoft.com/en-us/nuget/reference/packages-config>
+- NuGet lock files: <https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#locking-dependencies>
 
 ## MCP server configs
 
@@ -569,7 +599,6 @@ strong installed-state correlation tooling today.
 
 - Cargo (`Cargo.lock`).
 - Maven / Gradle (`pom.xml`, lockfiles).
-- NuGet (`packages.lock.json`).
 - PowerShell modules.
 - Chocolatey packages.
 - Scoop packages.

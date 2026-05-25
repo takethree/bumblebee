@@ -654,11 +654,11 @@ func TestNormalizeProfileRejectsUnknown(t *testing.T) {
 }
 
 func TestParseEcosystemFilter(t *testing.T) {
-	filter, err := parseEcosystemFilter([]string{"go,npm", "browser-extension"})
+	filter, err := parseEcosystemFilter([]string{"go,npm", "browser-extension,nuget"})
 	if err != nil {
 		t.Fatalf("parseEcosystemFilter: %v", err)
 	}
-	for _, ecosystem := range []string{model.EcosystemGo, model.EcosystemNPM, model.EcosystemBrowserExtension} {
+	for _, ecosystem := range []string{model.EcosystemGo, model.EcosystemNPM, model.EcosystemBrowserExtension, model.EcosystemNuGet} {
 		if !filter[ecosystem] {
 			t.Fatalf("missing ecosystem %q from filter %v", ecosystem, filter)
 		}

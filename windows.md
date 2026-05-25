@@ -253,19 +253,98 @@ implemented or tested.
 
 ## Goal 10: Decide Windows-Native Ecosystem Scope
 
-- [ ] Decide whether NuGet is in scope.
-- [ ] Decide whether PowerShell modules are in scope.
-- [ ] Decide whether Chocolatey packages are in scope.
-- [ ] Decide whether Scoop packages are in scope.
-- [ ] Decide whether winget/MSIX/AppX inventory is in scope.
-- [ ] Decide whether Visual Studio extensions are in scope.
-- [ ] Decide whether Cargo/Maven/Gradle should be handled as cross-platform follow-ups rather than Windows-specific work.
-- [ ] Create one parser task per accepted ecosystem.
-- [ ] Keep unsupported ecosystems explicitly documented.
+- [x] Decide whether NuGet is in scope.
+- [x] Decide whether PowerShell modules are in scope.
+- [x] Decide whether Chocolatey packages are in scope.
+- [x] Decide whether Scoop packages are in scope.
+- [x] Decide whether winget/MSIX/AppX inventory is in scope.
+- [x] Decide whether Visual Studio extensions are in scope.
+- [x] Decide whether Cargo/Maven/Gradle should be handled as cross-platform follow-ups rather than Windows-specific work.
+- [x] Implement NuGet project/deep parser support for `packages.config` and `packages.lock.json`.
+- [ ] Revisit NuGet global package-cache baseline roots only after project/deep metadata support is implemented and output volume is understood.
+- [ ] Design PowerShell module manifest support, including `.psd1` parsing and the emitted ecosystem name, before implementation.
+- [x] Keep unsupported and deferred ecosystems explicitly documented.
 
 Why: Windows support can ship without Windows-native ecosystems, but full
 developer endpoint coverage probably needs at least NuGet and PowerShell
 module inventory.
+
+Decision from 2026-05-25:
+
+- NuGet is in scope and should be the first Windows-native ecosystem slice.
+  The first implementation should scan project/deep metadata files only:
+  `packages.config` and `packages.lock.json`. Emit a shared `nuget`
+  ecosystem and keep `package_manager=nuget`. Do not add `%USERPROFILE%\.nuget`
+  or other NuGet global package-cache baseline roots in the first slice,
+  because cache inventory has different volume and installed-state semantics
+  than project metadata.
+- PowerShell modules are in scope, but second. The next decision before
+  implementation is how to parse module manifests (`.psd1`) safely and what
+  emitted ecosystem name downstream consumers should receive. Do not execute
+  PowerShell package-management commands to discover modules.
+- Chocolatey and Scoop are deferred for this compatibility-layer phase. They
+  are useful endpoint tooling inventory, but they are closer to installed app
+  package-manager state than developer project dependency metadata.
+- winget, MSIX, and AppX inventory are out of scope for this phase. They would
+  push the scanner toward installed-application inventory, Windows APIs,
+  registry state, permissions-sensitive package locations, or command output.
+- Visual Studio extensions are deferred. VSIX manifests are parseable metadata,
+  but reliable installed-root discovery across Visual Studio instances is a
+  separate path-discovery problem and should not be mixed into the NuGet slice.
+- Cargo, Maven, and Gradle are not Windows-native support work. They should be
+  handled as shared cross-platform parser follow-ups so Windows does not create
+  separate behavior for ecosystems that also matter on macOS and Linux.
+
+Implementation receipt from 2026-05-25:
+
+- Added shared NuGet parser support for project/deep scans over
+  `packages.config` and `packages.lock.json`. Records emit `ecosystem=nuget`,
+  `package_manager=nuget`, and source types `nuget-packages-config` or
+  `nuget-lockfile`.
+- `packages.config` emits high-confidence records for package entries with
+  both `id` and `version`. `packages.lock.json` emits high-confidence records
+  for resolved non-project dependencies and marks direct/transitive dependency
+  state when available.
+- Scanner dispatch, `--ecosystem nuget` filtering, README coverage, and
+  inventory-source documentation were updated through shared parser/model paths.
+  No NuGet package-manager execution, registry discovery, Visual Studio API,
+  `obj/project.assets.json`, or global package-cache baseline root was added.
+- Verified with the local Go toolchain: `go test ./internal/ecosystem/nuget
+  ./internal/scanner`, `go test ./cmd/bumblebee ./internal/model`, and
+  `go test ./cmd/bumblebee ./internal/...`.
+
+Smoke receipt from 2026-05-25:
+
+- `scripts\windows-smoke.ps1` passed after prepending the existing local Go
+  toolchain to `PATH` for that process. The redacted summary reported 9
+  baseline roots, 3 browser extension roots, 1 editor extension root, 5 MCP
+  config roots, 1,042 baseline package records, 0 findings, 5 duplicates, 4
+  diagnostics, no timeout, no summary error, and a complete HTTP sink project
+  scan with bearer auth over loopback.
+- A focused temporary NuGet project smoke used raw evidence outside the repo
+  and emitted 3 package records from `packages.config` and
+  `packages.lock.json`. All package records had `ecosystem=nuget`,
+  `root_kind=project_root`, and source types `nuget-packages-config` or
+  `nuget-lockfile`; the local project reference in the lockfile was not
+  emitted, and the scan summary was `status=complete`.
+
+Gap follow-up receipt from 2026-05-25 full validation:
+
+- NuGet lockfile `requested` ranges are now preserved in the existing
+  `requested_spec` field, while `version` remains the resolved version.
+- `scripts\windows-smoke.ps1` now creates a NuGet fixture under a path with
+  spaces and includes a redacted `nuget_project_scan` summary. The smoke
+  validates 5 NuGet package records, 2 `nuget-packages-config` records, 3
+  `nuget-lockfile` records, 3 `requested_spec` values, complete summary
+  status, project-root stamping, required field coverage, direct/transitive
+  counts, and expected skips for project references, missing versions, and
+  missing resolved versions.
+- The smoke helper now quotes captured command arguments before
+  `Start-Process` so Windows PowerShell 5.1 preserves roots containing spaces.
+- These remain intentional boundaries rather than bugs: `packages.config`
+  records leave `direct_dependency` empty, duplicate package/version records
+  from `packages.config` and `packages.lock.json` are source-accurate, and
+  NuGet global package-cache baseline roots remain deferred.
 
 ## Goal 11: Define WSL Behavior
 
@@ -410,10 +489,13 @@ Known limitations / current support boundary:
   Windows compatibility layer, but they intentionally keep unimplemented roots,
   native ecosystems, WSL, redirected known folders, and untested browser
   families outside the support claim.
-- Native ecosystem boundary: NuGet, PowerShell modules, Chocolatey, Scoop,
-  winget/MSIX/AppX, Visual Studio extensions, Cargo, Maven, and Gradle scope
-  decisions are still open in Goal 10. Unsupported native ecosystems must stay
-  explicitly documented rather than implied by "Windows support."
+- Native ecosystem boundary: Goal 10 now decides the Windows-native ecosystem
+  scope, but only NuGet project/deep parser work is the next implementation
+  slice. PowerShell modules are in scope after a manifest-parser design pass.
+  Chocolatey, Scoop, winget/MSIX/AppX, and Visual Studio extensions are
+  deferred or out of scope for this phase. Cargo, Maven, and Gradle remain
+  cross-platform follow-ups. Unsupported and deferred native ecosystems must
+  stay explicitly documented rather than implied by "Windows support."
 - WSL boundary: no WSL filesystem coverage is claimed. Until Goal 11 makes an
   explicit decision, WSL users should not assume the Windows binary inventories
   Linux distro package state.

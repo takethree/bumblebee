@@ -33,6 +33,52 @@ $scanErr = Join-Path $EvidenceRoot "baseline.stderr.txt"
 $httpFixtureRoot = Join-Path $EvidenceRoot "http-fixture-project"
 $httpReceivedOut = Join-Path $EvidenceRoot "http-received.ndjson"
 $httpReceiverResult = Join-Path $EvidenceRoot "http-receiver-result.json"
+$nugetFixtureRoot = Join-Path $EvidenceRoot "nuget fixture project"
+$nugetScanOut = Join-Path $EvidenceRoot "nuget-project.ndjson"
+$nugetScanErr = Join-Path $EvidenceRoot "nuget-project.stderr.txt"
+
+function ConvertTo-WindowsCommandLineArgument {
+    param([AllowNull()][string]$Argument)
+
+    if ($null -eq $Argument) {
+        return '""'
+    }
+    if ($Argument -notmatch '[\s"]') {
+        return $Argument
+    }
+
+    $out = [System.Text.StringBuilder]::new()
+    [void]$out.Append('"')
+    $backslashes = 0
+    foreach ($ch in $Argument.ToCharArray()) {
+        if ($ch -eq '\') {
+            $backslashes++
+            continue
+        }
+        if ($ch -eq '"') {
+            [void]$out.Append(('\' * (($backslashes * 2) + 1)))
+            [void]$out.Append('"')
+            $backslashes = 0
+            continue
+        }
+        if ($backslashes -gt 0) {
+            [void]$out.Append(('\' * $backslashes))
+            $backslashes = 0
+        }
+        [void]$out.Append($ch)
+    }
+    if ($backslashes -gt 0) {
+        [void]$out.Append(('\' * ($backslashes * 2)))
+    }
+    [void]$out.Append('"')
+    return $out.ToString()
+}
+
+function ConvertTo-WindowsCommandLine {
+    param([Parameter(Mandatory = $true)][string[]]$Arguments)
+
+    return (($Arguments | ForEach-Object { ConvertTo-WindowsCommandLineArgument $_ }) -join " ")
+}
 
 function Invoke-Captured {
     param(
@@ -43,9 +89,10 @@ function Invoke-Captured {
         [string]$WorkingDirectory = $repoRoot
     )
 
+    $argumentLine = ConvertTo-WindowsCommandLine $Arguments
     $proc = Start-Process `
         -FilePath $FilePath `
-        -ArgumentList $Arguments `
+        -ArgumentList $argumentLine `
         -WorkingDirectory $WorkingDirectory `
         -NoNewWindow `
         -Wait `
@@ -118,6 +165,66 @@ function New-SmokePackageFixture {
 }
 '@
     [System.IO.File]::WriteAllText($packageLock, $body, [System.Text.UTF8Encoding]::new($false))
+}
+
+function New-SmokeNuGetFixture {
+    param([Parameter(Mandatory = $true)][string]$Root)
+
+    New-Item -ItemType Directory -Force -Path $Root | Out-Null
+    $packagesConfig = Join-Path $Root "packages.config"
+    $packagesConfigBody = @'
+<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package id="Newtonsoft.Json" version="13.0.3" targetFramework="net472" />
+  <package id="Serilog" version="3.1.1" />
+  <package id="NoVersion" />
+</packages>
+'@
+    [System.IO.File]::WriteAllText($packagesConfig, $packagesConfigBody, [System.Text.UTF8Encoding]::new($false))
+
+    $lockfile = Join-Path $Root "packages.lock.json"
+    $lockfileBody = @'
+{
+  "version": 1,
+  "dependencies": {
+    ".NETFramework,Version=v4.7.2": {
+      "Newtonsoft.Json": {
+        "type": "Direct",
+        "requested": "[13.0.3, )",
+        "resolved": "13.0.3",
+        "contentHash": "abc"
+      },
+      "Serilog": {
+        "type": "Transitive",
+        "requested": "[3.0.0, )",
+        "resolved": "3.1.1",
+        "contentHash": "def"
+      },
+      "Local.Project": {
+        "type": "Project"
+      },
+      "NoResolved": {
+        "type": "Direct"
+      }
+    },
+    "net8.0": {
+      "Newtonsoft.Json": {
+        "type": "Direct",
+        "requested": "[13.0.3, )",
+        "resolved": "13.0.3",
+        "contentHash": "abc"
+      },
+      "Different.Version": {
+        "type": "Transitive",
+        "requested": "[2.0.0, )",
+        "resolved": "2.0.0",
+        "contentHash": "ghi"
+      }
+    }
+  }
+}
+'@
+    [System.IO.File]::WriteAllText($lockfile, $lockfileBody, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Get-FreeTcpPort {
@@ -363,6 +470,17 @@ if ($code -eq 0) {
         Receive-Job -Job $receiverJob -ErrorAction SilentlyContinue | Out-Null
         Remove-Job -Job $receiverJob -Force -ErrorAction SilentlyContinue
     }
+
+    New-SmokeNuGetFixture $nugetFixtureRoot
+    $nugetScanCode = Invoke-Captured $exePath @(
+        "scan",
+        "--profile", "project",
+        "--root", $nugetFixtureRoot,
+        "--ecosystem", "nuget",
+        "--max-duration", $duration
+    ) $nugetScanOut $nugetScanErr
+    Add-CommandResult $commands "scan_project_nuget" $nugetScanCode
+    if ($nugetScanCode -ne 0) { $failures.Add("project NuGet scan failed") }
 }
 
 $roots = @()
@@ -513,6 +631,85 @@ if ($commands.Contains("scan_project_http") -and $commands["scan_project_http"].
     }
 }
 
+$nugetRecords = Read-JsonLines $nugetScanOut
+$nugetRecordTypeCounts = [ordered]@{}
+$nugetSourceTypeCounts = [ordered]@{}
+$nugetSummary = $null
+$nugetPackages = New-Object System.Collections.Generic.List[object]
+foreach ($record in $nugetRecords) {
+    $recordType = [string]$record.record_type
+    if ([string]::IsNullOrWhiteSpace($recordType)) {
+        continue
+    }
+    if (-not $nugetRecordTypeCounts.Contains($recordType)) {
+        $nugetRecordTypeCounts[$recordType] = 0
+    }
+    $nugetRecordTypeCounts[$recordType]++
+    if ($recordType -eq "package") {
+        $nugetPackages.Add($record)
+        $sourceType = [string]$record.source_type
+        if (-not [string]::IsNullOrWhiteSpace($sourceType)) {
+            if (-not $nugetSourceTypeCounts.Contains($sourceType)) {
+                $nugetSourceTypeCounts[$sourceType] = 0
+            }
+            $nugetSourceTypeCounts[$sourceType]++
+        }
+    }
+    if ($recordType -eq "scan_summary") {
+        $nugetSummary = $record
+    }
+}
+
+$nugetRequiredFields = @("ecosystem", "package_name", "normalized_name", "version", "package_manager", "source_type", "source_file", "project_path", "root_kind", "confidence")
+$nugetMissingRequiredFields = [ordered]@{}
+foreach ($field in $nugetRequiredFields) {
+    $missing = @($nugetPackages | Where-Object { $null -eq (Get-JsonProperty $_ $field) -or [string]::IsNullOrWhiteSpace([string](Get-JsonProperty $_ $field)) }).Count
+    $nugetMissingRequiredFields[$field] = $missing
+}
+$nugetRequestedSpecCount = @($nugetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace([string](Get-JsonProperty $_ "requested_spec")) }).Count
+$nugetDirectTrueCount = @($nugetPackages | Where-Object { (Get-JsonProperty $_ "direct_dependency") -eq $true }).Count
+$nugetDirectFalseCount = @($nugetPackages | Where-Object { (Get-JsonProperty $_ "direct_dependency") -eq $false }).Count
+$nugetDirectEmptyCount = @($nugetPackages | Where-Object { $null -eq (Get-JsonProperty $_ "direct_dependency") }).Count
+$nugetTransitiveScopeCount = @($nugetPackages | Where-Object { (Get-JsonProperty $_ "install_scope") -eq "transitive" }).Count
+$nugetProjectRootCount = @($nugetPackages | Where-Object { (Get-JsonProperty $_ "root_kind") -eq "project_root" }).Count
+$nugetProjectReferenceEmitted = @($nugetPackages | Where-Object { (Get-JsonProperty $_ "package_name") -eq "Local.Project" }).Count -gt 0
+$nugetMissingVersionEmitted = @($nugetPackages | Where-Object { (Get-JsonProperty $_ "package_name") -eq "NoVersion" }).Count -gt 0
+$nugetMissingResolvedEmitted = @($nugetPackages | Where-Object { (Get-JsonProperty $_ "package_name") -eq "NoResolved" }).Count -gt 0
+
+if ($commands.Contains("scan_project_nuget") -and $commands["scan_project_nuget"].exit_code -eq 0) {
+    if ($nugetPackages.Count -ne 5) {
+        $failures.Add("NuGet smoke emitted $($nugetPackages.Count) package records, want 5")
+    }
+    if ($null -eq $nugetSummary) {
+        $failures.Add("NuGet smoke scan_summary was missing")
+    } elseif ($nugetSummary.status -ne "complete") {
+        $failures.Add("NuGet smoke scan_summary status was not complete")
+    }
+    foreach ($field in $nugetRequiredFields) {
+        if ($nugetMissingRequiredFields[$field] -ne 0) {
+            $failures.Add("NuGet smoke missing required field $field")
+        }
+    }
+    if (-not $nugetSourceTypeCounts.Contains("nuget-packages-config") -or $nugetSourceTypeCounts["nuget-packages-config"] -ne 2) {
+        $failures.Add("NuGet smoke did not emit 2 packages.config records")
+    }
+    if (-not $nugetSourceTypeCounts.Contains("nuget-lockfile") -or $nugetSourceTypeCounts["nuget-lockfile"] -ne 3) {
+        $failures.Add("NuGet smoke did not emit 3 lockfile records")
+    }
+    if ($nugetRequestedSpecCount -ne 3) {
+        $failures.Add("NuGet smoke requested_spec count was $nugetRequestedSpecCount, want 3")
+    }
+    if ($nugetDirectTrueCount -ne 1 -or $nugetDirectFalseCount -ne 2 -or $nugetDirectEmptyCount -ne 2 -or $nugetTransitiveScopeCount -ne 2) {
+        $failures.Add("NuGet smoke direct/transitive counts were unexpected")
+    }
+    if ($nugetProjectRootCount -ne $nugetPackages.Count) {
+        $failures.Add("NuGet smoke did not stamp all packages as project_root")
+    }
+    if ($nugetProjectReferenceEmitted -or $nugetMissingVersionEmitted -or $nugetMissingResolvedEmitted) {
+        $failures.Add("NuGet smoke emitted an expected-skipped entry")
+    }
+}
+
 $redacted = [ordered]@{
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
     evidence_dir = $EvidenceRoot
@@ -569,6 +766,24 @@ $redacted = [ordered]@{
         summary_http_batches_succeeded = Get-JsonProperty $httpSummary "http_batches_succeeded"
         summary_http_batches_failed = Get-JsonProperty $httpSummary "http_batches_failed"
         summary_http_last_status = Get-JsonProperty $httpSummary "http_last_status"
+    }
+    nuget_project_scan = [ordered]@{
+        record_type_counts = $nugetRecordTypeCounts
+        source_type_counts = $nugetSourceTypeCounts
+        package_records = $nugetPackages.Count
+        summary_present = $null -ne $nugetSummary
+        summary_status = Get-JsonProperty $nugetSummary "status"
+        summary_profile = Get-JsonProperty $nugetSummary "profile"
+        requested_spec_count = $nugetRequestedSpecCount
+        direct_true_count = $nugetDirectTrueCount
+        direct_false_count = $nugetDirectFalseCount
+        direct_empty_count = $nugetDirectEmptyCount
+        transitive_scope_count = $nugetTransitiveScopeCount
+        project_root_count = $nugetProjectRootCount
+        missing_required_fields = $nugetMissingRequiredFields
+        skipped_project_reference_emitted = $nugetProjectReferenceEmitted
+        skipped_missing_version_emitted = $nugetMissingVersionEmitted
+        skipped_missing_resolved_emitted = $nugetMissingResolvedEmitted
     }
     failures = @($failures)
 }

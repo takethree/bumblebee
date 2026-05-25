@@ -25,6 +25,7 @@ import (
 	"github.com/perplexityai/bumblebee/internal/ecosystem/gomod"
 	"github.com/perplexityai/bumblebee/internal/ecosystem/mcp"
 	"github.com/perplexityai/bumblebee/internal/ecosystem/npm"
+	"github.com/perplexityai/bumblebee/internal/ecosystem/nuget"
 	"github.com/perplexityai/bumblebee/internal/ecosystem/pnpm"
 	"github.com/perplexityai/bumblebee/internal/ecosystem/pypi"
 	"github.com/perplexityai/bumblebee/internal/ecosystem/rubygems"
@@ -246,6 +247,7 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	goS := &gomod.Scanner{MaxFileSize: cfg.MaxFileSize, Emit: emit, Diag: diag}
 	rbS := &rubygems.Scanner{MaxFileSize: cfg.MaxFileSize, Emit: emit, Diag: diag}
 	cmpS := &composer.Scanner{MaxFileSize: cfg.MaxFileSize, Emit: emit, Diag: diag}
+	nugetS := &nuget.Scanner{MaxFileSize: cfg.MaxFileSize, Emit: emit, Diag: diag}
 	mcpS := &mcp.Scanner{MaxFileSize: cfg.MaxFileSize, Emit: emit, Diag: diag}
 	extS := &editorext.Scanner{MaxFileSize: cfg.MaxFileSize, Emit: emit, Diag: diag}
 	bxS := &browserext.Scanner{MaxFileSize: cfg.MaxFileSize, Emit: emit, Diag: diag}
@@ -306,6 +308,10 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 					err = cmpS.ScanComposerLock(j.path, cfg.BaseRecord)
 				case "composer-installed":
 					err = cmpS.ScanInstalledJSON(j.path, cfg.BaseRecord)
+				case "nuget-packages-config":
+					err = nugetS.ScanPackagesConfig(j.path, cfg.BaseRecord)
+				case "nuget-lock":
+					err = nugetS.ScanLockfile(j.path, cfg.BaseRecord)
 				case "mcp-config":
 					err = mcpS.ScanConfig(j.path, cfg.BaseRecord)
 				case "editor-ext":
@@ -416,6 +422,10 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			send(job{kind: "composer-lock", path: path})
 		case enabled(model.EcosystemPackagist) && base == "installed.json" && composer.IsInstalledJSON(path):
 			send(job{kind: "composer-installed", path: path})
+		case enabled(model.EcosystemNuGet) && nuget.IsPackagesConfig(base):
+			send(job{kind: "nuget-packages-config", path: path})
+		case enabled(model.EcosystemNuGet) && nuget.IsLockfile(base):
+			send(job{kind: "nuget-lock", path: path})
 		case enabled(model.EcosystemMCP) && mcp.IsKnownMCPConfig(base):
 			send(job{kind: "mcp-config", path: path})
 		case enabled(model.EcosystemMCP) && base == "settings.json" && mcp.IsGeminiSettingsJSON(path):

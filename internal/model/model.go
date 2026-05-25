@@ -40,6 +40,7 @@ const (
 	EcosystemGo               = "go"
 	EcosystemRubyGems         = "rubygems"
 	EcosystemPackagist        = "packagist"
+	EcosystemNuGet            = "nuget"
 	EcosystemMCP              = "mcp"
 	EcosystemEditorExtension  = "editor-extension"
 	EcosystemBrowserExtension = "browser-extension"
@@ -51,6 +52,7 @@ var supportedEcosystems = map[string]struct{}{
 	EcosystemGo:               {},
 	EcosystemRubyGems:         {},
 	EcosystemPackagist:        {},
+	EcosystemNuGet:            {},
 	EcosystemMCP:              {},
 	EcosystemEditorExtension:  {},
 	EcosystemBrowserExtension: {},
@@ -62,6 +64,7 @@ var supportedEcosystemOrder = []string{
 	EcosystemGo,
 	EcosystemRubyGems,
 	EcosystemPackagist,
+	EcosystemNuGet,
 	EcosystemMCP,
 	EcosystemEditorExtension,
 	EcosystemBrowserExtension,
@@ -151,11 +154,12 @@ type Record struct {
 	LifecycleScripts    []string `json:"lifecycle_scripts,omitempty"`
 	Confidence          string   `json:"confidence"`
 
-	// RequestedSpec is set on MCP records when the configured command/args
-	// reference a package by spec (e.g. "@playwright/mcp@latest" or
-	// "left-pad@1.2.3"). The selector portion ("@latest", "@1.2.3") is
-	// preserved here while PackageName is normalized to the bare name.
-	// Version remains empty unless an exact installed version is known.
+	// RequestedSpec preserves the package selector or requested version range
+	// when a source file carries one in addition to a normalized package name.
+	// MCP records use it for configured package specs such as
+	// "@playwright/mcp@latest"; NuGet lockfile records use it for requested
+	// ranges such as "[13.0.3, )". Version remains the resolved or installed
+	// version when one is known.
 	RequestedSpec string `json:"requested_spec,omitempty"`
 
 	// ServerName is set on MCP records to the id (map key) of the server
