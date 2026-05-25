@@ -197,7 +197,15 @@ coverage includes:
 - VS Code-family editor extension roots for VS Code, Cursor, Windsurf, and
   VSCodium.
 - Windows Claude Desktop MCP config roots, including the MSIX package path.
-- Chrome, Edge, and Firefox extension roots when present.
+- npm global packages under `%APPDATA%\npm\node_modules` when present.
+- Python user site-packages under `%APPDATA%\Python\Python*\site-packages`
+  when present.
+- pipx venv roots under `%USERPROFILE%\pipx\venvs`,
+  `%LOCALAPPDATA%\pipx\venvs`, `%USERPROFILE%\.local\pipx\venvs`, and the
+  shared cross-platform `%USERPROFILE%\.local\share\pipx\venvs` candidate when
+  present.
+- Chrome, Edge, Brave, Chromium, Vivaldi, Firefox, LibreWolf, and Waterfox
+  extension roots when present.
 - PowerShell module manifests under current-user and all-users PowerShell
   module roots when present.
 - File output, HTTP(S) output, and trailing `scan_summary.status=complete` for
@@ -205,9 +213,8 @@ coverage includes:
 
 Not currently claimed on Windows:
 
-- User npm/global, Python, pipx/virtualenv, Ruby/Bundler, and Composer default
-  roots.
-- Brave, Chromium, Vivaldi, LibreWolf, and Waterfox default browser roots.
+- Arbitrary virtualenv discovery, custom npm/Python/pipx prefixes,
+  Ruby/Bundler default roots, and Composer default roots.
 - Windows-native ecosystems beyond project/deep NuGet metadata and PowerShell
   module manifests, such as Chocolatey, Scoop, winget/MSIX/AppX, and Visual
   Studio extensions.

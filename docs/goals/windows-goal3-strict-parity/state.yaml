@@ -1,0 +1,291 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Goal 3A Strict-Parity Baseline Roots"
+  slug: "windows-goal3-strict-parity"
+  kind: existing_plan
+  tranche: "Implement strict-parity Windows baseline roots for npm global packages, Python user site-packages, and pipx venvs without adding Windows-only support divergence."
+  status: done
+  oracle:
+    signal: "Windows baseline resolves source-backed npm/Python/pipx root candidates; tests and smoke prove records emit from those roots; docs define implemented and deferred Goal 3 boundaries."
+    cadence: "after source validation, after Worker implementation, and at final audit"
+    final_proof: "Receipts list source-backed decisions, changed files, focused tests, full tests, Windows smoke, docs updates, and final audit with full_outcome_complete=true."
+  intake:
+    original_request: "$goalbuddy:goal-prep for the next Windows strict-parity Goal 3 plan."
+    interpreted_outcome: "Prepare a GoalBuddy board to implement Windows npm/Python/pipx baseline roots as a compatibility-layer parity slice."
+    input_shape: existing_plan
+    audience: "Windows compatibility fork maintainer"
+    authority: approved
+    proof_type: test
+    completion_proof: "Focused tests, go test ./..., Windows smoke, git diff --check, docs updates, and final audit prove the strict-parity tranche is complete."
+    likely_misfire: "Closing every Goal 3 checkbox by adding Windows-only Ruby/Composer/global roots or discovery behavior that macOS/Linux do not claim."
+    blind_spots_considered:
+      - "npm custom prefixes and registry/env discovery"
+      - "Python custom installs, virtualenv discovery, and roaming/local package ambiguity"
+      - "pipx historical home variants"
+      - "Ruby/Bundler and Composer global roots exceeding current macOS/Linux baseline support"
+      - "WSL and redirected known folders"
+    existing_plan_facts:
+      - "Use strict parity, not close-every-checkbox scope."
+      - "Add Windows equivalents for existing npm/Python/pipx parser coverage where source-backed."
+      - "Use literal root candidates filtered by existence."
+      - "Do not run package-manager commands or query registry/env-specific custom prefixes."
+      - "Update README, docs/inventory-sources.md, and windows.md."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-goal3-strict-parity"
+    last_error: "npx goalbuddy board exited without generating .goalbuddy-board; Socket Firewall failed to fetch https://raw.githubusercontent.com/tolibear/goalbuddy/main/extend/catalog.json with HTTP 404."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: medium
+    objective: "Validate the strict-parity source evidence and exact Windows npm/Python/pipx root candidates before implementation."
+    inputs:
+      - "Approved strict-parity plan in chat"
+      - "windows.md Goal 3 and current support boundary"
+      - "README.md and docs/inventory-sources.md"
+      - "Official npm, Python, and pipx documentation"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Do not run package-manager commands."
+      - "Do not expand scope to Ruby/Bundler, Composer, WSL, registry, redirected folders, or global caches."
+    expected_output:
+      - "Exact approved root candidates for npm, Python, and pipx"
+      - "Source citations or local source notes"
+      - "Explicit deferrals"
+      - "Any plan correction needed before Worker"
+    receipt:
+      result: done
+      summary: "Validated strict-parity source evidence for npm, Python user site-packages, and pipx Windows roots. Windows already inherits shared dotfile-style roots from roots.go, so the Worker should add only missing Windows-native equivalents."
+      note: "Evidence came from official npm, Python, and pipx documentation; implementation was deferred to T003."
+      approved_root_candidates:
+        npm:
+          - "%APPDATA%\\npm\\node_modules"
+        python:
+          - "%APPDATA%\\Python\\Python*\\site-packages"
+        pipx:
+          - "%USERPROFILE%\\pipx\\venvs"
+          - "%LOCALAPPDATA%\\pipx\\venvs"
+          - "%USERPROFILE%\\.local\\pipx\\venvs"
+      source_evidence:
+        - "npm folders docs: Windows prefix defaults to %AppData%\\npm and Windows global installs go to {prefix}\\node_modules."
+        - "Python site docs: Windows USER_SITE defaults to %APPDATA%\\Python\\PythonXY\\site-packages and USER_BASE to %APPDATA%\\Python."
+        - "pipx docs: Windows PIPX_HOME defaults to ~\\pipx; compatibility fallback may use %USERPROFILE%\\AppData\\Local\\pipx or ~\\.local\\pipx; venvs live under the pipx home venvs directory."
+      citations:
+        - "https://docs.npmjs.com/cli/v11/configuring-npm/folders/"
+        - "https://docs.python.org/3.14/library/site.html"
+        - "https://pipx.pypa.io/stable/reference/environment-variables/"
+        - "https://pipx.pypa.io/stable/how-to/configure-paths/"
+      deferrals:
+        - "Do not add Ruby/Bundler or Composer global roots in this strict-parity tranche."
+        - "Do not add npm custom prefixes, Python custom installs, virtualenv discovery, pipx PIPX_HOME env discovery, registry reads, WSL, redirected folders, or global caches."
+      plan_correction:
+        - "Do not add %USERPROFILE%\\.local\\share\\pipx\\venvs in Windows platform hooks because the shared baseline candidate already covers that path."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review T001 and approve the largest safe Worker package for strict-parity Goal 3A."
+    inputs:
+      - "T001 receipt"
+      - "Current dirty diff"
+      - "Goal oracle"
+    constraints:
+      - "Do not implement."
+      - "Reject Windows-only support divergence."
+      - "Reject any candidate that requires command execution, registry discovery, or parser changes."
+    expected_output:
+      - "approved | blocked | revise_plan"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      rationale: "T001 candidates are source-backed, literal, existence-filtered, and do not require parser/schema changes or Windows-only support beyond macOS/Linux behavior."
+      worker_objective: "Implement the approved strict-parity Windows npm/Python/pipx baseline roots, tests, smoke coverage, and docs."
+      allowed_files:
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "internal/scanner/scanner_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+        - "README.md"
+        - "docs/inventory-sources.md"
+        - "windows.md"
+        - "docs/goals/windows-goal3-strict-parity/state.yaml"
+      verify:
+        - "go test ./cmd/bumblebee ./internal/scanner ./internal/ecosystem/npm ./internal/ecosystem/pypi"
+        - "go test ./..."
+        - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+        - "git diff --check"
+      stop_if:
+        - "Need files outside allowed_files."
+        - "A root candidate needs registry, command-output, package-manager execution, custom env prefix discovery, WSL, or redirected-folder discovery."
+        - "A candidate requires parser/schema/output changes."
+        - "Ruby/Bundler or Composer roots become necessary to satisfy the tranche."
+        - "Verification fails twice for the same reason."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement the approved strict-parity Windows npm/Python/pipx baseline roots, tests, smoke coverage, and docs."
+    allowed_files:
+      - "cmd/bumblebee/roots_windows.go"
+      - "cmd/bumblebee/main_windows_test.go"
+      - "internal/scanner/scanner_windows_test.go"
+      - "scripts/windows-smoke.ps1"
+      - "README.md"
+      - "docs/inventory-sources.md"
+      - "windows.md"
+      - "docs/goals/windows-goal3-strict-parity/state.yaml"
+    verify:
+      - "go test ./cmd/bumblebee ./internal/scanner ./internal/ecosystem/npm ./internal/ecosystem/pypi"
+      - "go test ./..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "A root candidate needs registry, command-output, package-manager execution, custom env prefix discovery, WSL, or redirected-folder discovery."
+      - "A candidate requires parser/schema/output changes."
+      - "Ruby/Bundler or Composer roots become necessary to satisfy the tranche."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      summary: "Implemented source-backed Windows baseline roots for npm global packages, Python user site-packages, and pipx venvs as literal, existence-filtered compatibility-layer candidates."
+      changed_files:
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "internal/scanner/scanner_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+        - "README.md"
+        - "docs/inventory-sources.md"
+        - "windows.md"
+        - "docs/goals/windows-goal3-strict-parity/state.yaml"
+      implemented_roots:
+        - "%APPDATA%\\npm\\node_modules"
+        - "%APPDATA%\\Python\\Python*\\site-packages"
+        - "%USERPROFILE%\\pipx\\venvs"
+        - "%LOCALAPPDATA%\\pipx\\venvs"
+        - "%USERPROFILE%\\.local\\pipx\\venvs"
+      preserved_shared_root:
+        - "%USERPROFILE%\\.local\\share\\pipx\\venvs remains covered by shared baseline handling, not duplicated in the Windows hook."
+      verification:
+        - command: "go test ./cmd/bumblebee ./internal/scanner ./internal/ecosystem/npm ./internal/ecosystem/pypi"
+          result: pass
+        - command: "go test ./..."
+          result: pass
+        - command: "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+          result: pass
+          smoke_summary: "C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-windows-smoke\\20260525-163525\\smoke-summary.redacted.json"
+          strict_parity_fixture:
+            expected_roots_listed: true
+            package_records: 5
+            source_type_counts:
+              npm-node_modules: 1
+              pypi-dist-info: 4
+            summary_status: complete
+        - command: "git diff --check"
+          result: pass
+          notes: "Only Git line-ending warnings were printed."
+      commands:
+        - command: "go test ./cmd/bumblebee ./internal/scanner ./internal/ecosystem/npm ./internal/ecosystem/pypi"
+          status: pass
+        - command: "go test ./..."
+          status: pass
+        - command: "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+          status: pass
+        - command: "git diff --check"
+          status: pass
+      deferrals_preserved:
+        - "Ruby/Bundler and Composer baseline roots."
+        - "Custom npm/Python/pipx prefixes and package-manager command execution."
+        - "Arbitrary virtualenv discovery."
+        - "Registry reads, WSL, redirected known folders, and global caches."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether Windows Goal 3A strict-parity baseline roots are complete."
+    inputs:
+      - "All task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "windows.md Goal 3 and support boundary"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if docs imply unsupported Ruby, Composer, WSL, registry, custom-prefix, or redirected-folder support."
+      - "Reject completion if Windows gained support beyond macOS/Linux baseline without an explicit deferral/cross-platform note."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "Final audit accepts Goal 3A: implementation, tests, smoke, and docs match the strict-parity oracle without adding Ruby/Composer/custom-prefix/virtualenv/registry/WSL/redirected-folder support."
+      evidence:
+        - "Windows platform hook adds only the approved literal npm/Python/pipx candidates."
+        - "Current-user and --all-users root tests cover the new candidates."
+        - "Scanner test proves npm and PyPI records emit from Windows-shaped npm/Python/pipx metadata paths."
+        - "Windows smoke strict-parity fixture listed all expected roots and emitted 5 package records with scan_summary.status=complete."
+        - "README.md, docs/inventory-sources.md, and windows.md describe implemented roots and deferred boundaries."
+      missing_evidence: []
+      next_task: null
+
+checks:
+  dirty_fingerprint: "Goal 3A implementation complete; worktree also contains prior Windows browser/privacy changes outside this goal's receipt."
+  last_verification:
+    result: pass
+    task: T999
+    commands:
+      - "go test ./cmd/bumblebee ./internal/scanner ./internal/ecosystem/npm ./internal/ecosystem/pypi"
+      - "go test ./..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"
+    reason: "All Goal 3A verification passed; git diff check emitted only line-ending warnings."

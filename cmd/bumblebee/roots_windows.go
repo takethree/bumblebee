@@ -128,7 +128,13 @@ func platformBaselineHomeCandidates(home string) []scanner.Root {
 	)
 	appData := platformRoamingAppDataDir(home)
 	if appData != "" {
-		roots = append(roots, scanner.Root{Path: filepath.Join(appData, "Claude"), Kind: model.RootKindMCPConfig})
+		roots = append(roots,
+			scanner.Root{Path: filepath.Join(appData, "npm", "node_modules"), Kind: model.RootKindUserPackage},
+			scanner.Root{Path: filepath.Join(appData, "Claude"), Kind: model.RootKindMCPConfig},
+		)
+		for _, p := range globExisting(filepath.Join(appData, "Python", "Python*", "site-packages")) {
+			roots = append(roots, scanner.Root{Path: p, Kind: model.RootKindUserPackage})
+		}
 	}
 	localAppData := platformLocalAppDataDir(home)
 	if localAppData != "" {
@@ -136,7 +142,12 @@ func platformBaselineHomeCandidates(home string) []scanner.Root {
 			Path: filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude"),
 			Kind: model.RootKindMCPConfig,
 		})
+		roots = append(roots, scanner.Root{Path: filepath.Join(localAppData, "pipx", "venvs"), Kind: model.RootKindUserPackage})
 	}
+	roots = append(roots,
+		scanner.Root{Path: filepath.Join(home, "pipx", "venvs"), Kind: model.RootKindUserPackage},
+		scanner.Root{Path: filepath.Join(home, ".local", "pipx", "venvs"), Kind: model.RootKindUserPackage},
+	)
 	return roots
 }
 
@@ -147,7 +158,10 @@ func platformBrowserExtensionCandidateRoots(home string) []string {
 	if localAppData != "" {
 		for _, base := range []string{
 			filepath.Join(localAppData, "Google", "Chrome", "User Data"),
+			filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "User Data"),
+			filepath.Join(localAppData, "Chromium", "User Data"),
 			filepath.Join(localAppData, "Microsoft", "Edge", "User Data"),
+			filepath.Join(localAppData, "Vivaldi", "User Data"),
 		} {
 			for _, prof := range chromiumProfiles {
 				roots = append(roots, filepath.Join(base, prof, "Extensions"))
@@ -156,7 +170,12 @@ func platformBrowserExtensionCandidateRoots(home string) []string {
 	}
 	appData := platformRoamingAppDataDir(home)
 	if appData != "" {
-		roots = append(roots, filepath.Join(appData, "Mozilla", "Firefox", "Profiles"))
+		roots = append(roots,
+			filepath.Join(appData, "Mozilla", "Firefox", "Profiles"),
+			filepath.Join(appData, "LibreWolf", "Profiles"),
+			filepath.Join(appData, "Waterfox", "Waterfox", "Profiles"),
+			filepath.Join(appData, "Waterfox", "Profiles"),
+		)
 	}
 	return roots
 }

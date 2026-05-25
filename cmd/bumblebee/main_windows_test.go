@@ -25,11 +25,25 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 	winPsUserModules := filepath.Join(home, "Documents", "WindowsPowerShell", "Modules")
 	psAllUsersModules := filepath.Join(programFiles, "PowerShell", "Modules")
 	winPsAllUsersModules := filepath.Join(programFiles, "WindowsPowerShell", "Modules")
+	npmGlobalModules := filepath.Join(appData, "npm", "node_modules")
+	pythonUserSite := filepath.Join(appData, "Python", "Python311", "site-packages")
+	pipxHomeVenvs := filepath.Join(home, "pipx", "venvs")
+	pipxLocalAppDataVenvs := filepath.Join(localAppData, "pipx", "venvs")
+	pipxLegacyVenvs := filepath.Join(home, ".local", "pipx", "venvs")
 	chromeDefaultExt := filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Extensions")
 	chromeProfile1Ext := filepath.Join(localAppData, "Google", "Chrome", "User Data", "Profile 1", "Extensions")
+	braveDefaultExt := filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Extensions")
+	braveProfile9Ext := filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "User Data", "Profile 9", "Extensions")
+	chromiumDefaultExt := filepath.Join(localAppData, "Chromium", "User Data", "Default", "Extensions")
+	chromiumProfile1Ext := filepath.Join(localAppData, "Chromium", "User Data", "Profile 1", "Extensions")
 	edgeDefaultExt := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Extensions")
 	edgeProfile1Ext := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Profile 1", "Extensions")
+	vivaldiDefaultExt := filepath.Join(localAppData, "Vivaldi", "User Data", "Default", "Extensions")
+	vivaldiProfile9Ext := filepath.Join(localAppData, "Vivaldi", "User Data", "Profile 9", "Extensions")
 	firefoxProfiles := filepath.Join(appData, "Mozilla", "Firefox", "Profiles")
+	librewolfProfiles := filepath.Join(appData, "LibreWolf", "Profiles")
+	waterfoxProfiles := filepath.Join(appData, "Waterfox", "Waterfox", "Profiles")
+	waterfoxLegacyProfiles := filepath.Join(appData, "Waterfox", "Profiles")
 
 	want := map[string]string{
 		filepath.Join(home, "go"):                             model.RootKindUserPackage,
@@ -44,13 +58,27 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 		winPsUserModules:                 model.RootKindUserPackage,
 		psAllUsersModules:                model.RootKindGlobalPackage,
 		winPsAllUsersModules:             model.RootKindGlobalPackage,
+		npmGlobalModules:                 model.RootKindUserPackage,
+		pythonUserSite:                   model.RootKindUserPackage,
+		pipxHomeVenvs:                    model.RootKindUserPackage,
+		pipxLocalAppDataVenvs:            model.RootKindUserPackage,
+		pipxLegacyVenvs:                  model.RootKindUserPackage,
 		filepath.Join(appData, "Claude"): model.RootKindMCPConfig,
 		msixClaude:                       model.RootKindMCPConfig,
 		chromeDefaultExt:                 model.RootKindBrowserExtension,
 		chromeProfile1Ext:                model.RootKindBrowserExtension,
+		braveDefaultExt:                  model.RootKindBrowserExtension,
+		braveProfile9Ext:                 model.RootKindBrowserExtension,
+		chromiumDefaultExt:               model.RootKindBrowserExtension,
+		chromiumProfile1Ext:              model.RootKindBrowserExtension,
 		edgeDefaultExt:                   model.RootKindBrowserExtension,
 		edgeProfile1Ext:                  model.RootKindBrowserExtension,
+		vivaldiDefaultExt:                model.RootKindBrowserExtension,
+		vivaldiProfile9Ext:               model.RootKindBrowserExtension,
 		firefoxProfiles:                  model.RootKindBrowserExtension,
+		librewolfProfiles:                model.RootKindBrowserExtension,
+		waterfoxProfiles:                 model.RootKindBrowserExtension,
+		waterfoxLegacyProfiles:           model.RootKindBrowserExtension,
 	}
 	for p := range want {
 		if err := os.MkdirAll(p, 0o755); err != nil {
@@ -105,11 +133,25 @@ func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 		filepath.Join(home, "Documents", "WindowsPowerShell", "Modules"),
 		filepath.Join(programFiles, "PowerShell", "Modules"),
 		filepath.Join(programFiles, "WindowsPowerShell", "Modules"),
+		filepath.Join(appData, "npm", "node_modules"),
+		filepath.Join(appData, "Python", "Python311", "site-packages"),
+		filepath.Join(home, "pipx", "venvs"),
+		filepath.Join(localAppData, "pipx", "venvs"),
+		filepath.Join(home, ".local", "pipx", "venvs"),
 		filepath.Join(appData, "Claude"),
 		msixClaude,
 		filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Extensions"),
+		filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Extensions"),
+		filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "User Data", "Profile 9", "Extensions"),
+		filepath.Join(localAppData, "Chromium", "User Data", "Default", "Extensions"),
+		filepath.Join(localAppData, "Chromium", "User Data", "Profile 1", "Extensions"),
 		filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Extensions"),
+		filepath.Join(localAppData, "Vivaldi", "User Data", "Default", "Extensions"),
+		filepath.Join(localAppData, "Vivaldi", "User Data", "Profile 9", "Extensions"),
 		filepath.Join(appData, "Mozilla", "Firefox", "Profiles"),
+		filepath.Join(appData, "LibreWolf", "Profiles"),
+		filepath.Join(appData, "Waterfox", "Waterfox", "Profiles"),
+		filepath.Join(appData, "Waterfox", "Profiles"),
 	}
 	gotPaths := map[string]bool{}
 	for _, r := range roots {
@@ -125,8 +167,17 @@ func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 func TestClassifyRootWindowsBrowserExtensions(t *testing.T) {
 	cases := []string{
 		`C:\Users\alice\AppData\Local\Google\Chrome\User Data\Default\Extensions`,
+		`C:\Users\alice\AppData\Local\BraveSoftware\Brave-Browser\User Data\Default\Extensions`,
+		`C:\Users\alice\AppData\Local\BraveSoftware\Brave-Browser\User Data\Profile 9\Extensions`,
+		`C:\Users\alice\AppData\Local\Chromium\User Data\Default\Extensions`,
+		`C:\Users\alice\AppData\Local\Chromium\User Data\Profile 1\Extensions`,
 		`C:\Users\alice\AppData\Local\Microsoft\Edge\User Data\Profile 1\Extensions`,
+		`C:\Users\alice\AppData\Local\Vivaldi\User Data\Default\Extensions`,
+		`C:\Users\alice\AppData\Local\Vivaldi\User Data\Profile 9\Extensions`,
 		`C:\Users\alice\AppData\Roaming\Mozilla\Firefox\Profiles`,
+		`C:\Users\alice\AppData\Roaming\LibreWolf\Profiles`,
+		`C:\Users\alice\AppData\Roaming\Waterfox\Waterfox\Profiles`,
+		`C:\Users\alice\AppData\Roaming\Waterfox\Profiles`,
 	}
 	for _, p := range cases {
 		if got := classifyRoot(p, model.ProfileBaseline); got != model.RootKindBrowserExtension {
@@ -156,13 +207,25 @@ func TestResolveRootsBaselineWindowsBrowserRootsAvoidSensitiveParents(t *testing
 	t.Setenv("LOCALAPPDATA", localAppData)
 
 	chromeDefault := filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default")
+	braveDefault := filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "User Data", "Default")
+	chromiumDefault := filepath.Join(localAppData, "Chromium", "User Data", "Default")
 	edgeDefault := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default")
+	vivaldiDefault := filepath.Join(localAppData, "Vivaldi", "User Data", "Default")
 	firefoxProfiles := filepath.Join(appData, "Mozilla", "Firefox", "Profiles")
 	firefoxProfile := filepath.Join(firefoxProfiles, "abcd.default-release")
+	librewolfProfiles := filepath.Join(appData, "LibreWolf", "Profiles")
+	waterfoxProfiles := filepath.Join(appData, "Waterfox", "Waterfox", "Profiles")
+	waterfoxLegacyProfiles := filepath.Join(appData, "Waterfox", "Profiles")
 	wantRoots := []string{
 		filepath.Join(chromeDefault, "Extensions"),
+		filepath.Join(braveDefault, "Extensions"),
+		filepath.Join(chromiumDefault, "Extensions"),
 		filepath.Join(edgeDefault, "Extensions"),
+		filepath.Join(vivaldiDefault, "Extensions"),
 		firefoxProfiles,
+		librewolfProfiles,
+		waterfoxProfiles,
+		waterfoxLegacyProfiles,
 	}
 	notRoots := []string{
 		filepath.Dir(chromeDefault),
@@ -173,6 +236,16 @@ func TestResolveRootsBaselineWindowsBrowserRootsAvoidSensitiveParents(t *testing
 		filepath.Join(chromeDefault, "Local Storage"),
 		filepath.Join(chromeDefault, "IndexedDB"),
 		filepath.Join(chromeDefault, "Cache"),
+		filepath.Dir(braveDefault),
+		braveDefault,
+		filepath.Join(braveDefault, "Cookies"),
+		filepath.Join(braveDefault, "Login Data"),
+		filepath.Join(braveDefault, "History"),
+		filepath.Dir(chromiumDefault),
+		chromiumDefault,
+		filepath.Join(chromiumDefault, "Cookies"),
+		filepath.Join(chromiumDefault, "Login Data"),
+		filepath.Join(chromiumDefault, "History"),
 		filepath.Dir(edgeDefault),
 		edgeDefault,
 		filepath.Join(edgeDefault, "Cookies"),
@@ -181,6 +254,11 @@ func TestResolveRootsBaselineWindowsBrowserRootsAvoidSensitiveParents(t *testing
 		filepath.Join(edgeDefault, "Local Storage"),
 		filepath.Join(edgeDefault, "IndexedDB"),
 		filepath.Join(edgeDefault, "Cache"),
+		filepath.Dir(vivaldiDefault),
+		vivaldiDefault,
+		filepath.Join(vivaldiDefault, "Cookies"),
+		filepath.Join(vivaldiDefault, "Login Data"),
+		filepath.Join(vivaldiDefault, "History"),
 		firefoxProfile,
 		filepath.Join(firefoxProfile, "cache2"),
 		filepath.Join(firefoxProfile, "cookies.sqlite"),
@@ -258,12 +336,23 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 			filepath.Join(h, "go"),
 			filepath.Join(h, "Documents", "PowerShell", "Modules"),
 			filepath.Join(h, "Documents", "WindowsPowerShell", "Modules"),
+			filepath.Join(roaming, "npm", "node_modules"),
+			filepath.Join(roaming, "Python", "Python311", "site-packages"),
+			filepath.Join(h, "pipx", "venvs"),
+			filepath.Join(local, "pipx", "venvs"),
+			filepath.Join(h, ".local", "pipx", "venvs"),
 			filepath.Join(h, ".vscode", "extensions"),
 			filepath.Join(roaming, "Claude"),
 			filepath.Join(local, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude"),
 			filepath.Join(local, "Google", "Chrome", "User Data", "Default", "Extensions"),
+			filepath.Join(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Extensions"),
+			filepath.Join(local, "Chromium", "User Data", "Default", "Extensions"),
 			filepath.Join(local, "Microsoft", "Edge", "User Data", "Profile 1", "Extensions"),
+			filepath.Join(local, "Vivaldi", "User Data", "Default", "Extensions"),
 			filepath.Join(roaming, "Mozilla", "Firefox", "Profiles"),
+			filepath.Join(roaming, "LibreWolf", "Profiles"),
+			filepath.Join(roaming, "Waterfox", "Waterfox", "Profiles"),
+			filepath.Join(roaming, "Waterfox", "Profiles"),
 		} {
 			mustMkdir(p)
 		}
@@ -281,15 +370,26 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 		roaming := filepath.Join(h, "AppData", "Roaming")
 		local := filepath.Join(h, "AppData", "Local")
 		want := map[string]string{
-			filepath.Join(h, "go"):                                                                      model.RootKindUserPackage,
-			filepath.Join(h, "Documents", "PowerShell", "Modules"):                                      model.RootKindUserPackage,
-			filepath.Join(h, "Documents", "WindowsPowerShell", "Modules"):                               model.RootKindUserPackage,
-			filepath.Join(h, ".vscode", "extensions"):                                                   model.RootKindEditorExtension,
-			filepath.Join(roaming, "Claude"):                                                            model.RootKindMCPConfig,
-			filepath.Join(local, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude"): model.RootKindMCPConfig,
-			filepath.Join(local, "Google", "Chrome", "User Data", "Default", "Extensions"):              model.RootKindBrowserExtension,
-			filepath.Join(local, "Microsoft", "Edge", "User Data", "Profile 1", "Extensions"):           model.RootKindBrowserExtension,
-			filepath.Join(roaming, "Mozilla", "Firefox", "Profiles"):                                    model.RootKindBrowserExtension,
+			filepath.Join(h, "go"):                                                                       model.RootKindUserPackage,
+			filepath.Join(h, "Documents", "PowerShell", "Modules"):                                       model.RootKindUserPackage,
+			filepath.Join(h, "Documents", "WindowsPowerShell", "Modules"):                                model.RootKindUserPackage,
+			filepath.Join(roaming, "npm", "node_modules"):                                                model.RootKindUserPackage,
+			filepath.Join(roaming, "Python", "Python311", "site-packages"):                               model.RootKindUserPackage,
+			filepath.Join(h, "pipx", "venvs"):                                                            model.RootKindUserPackage,
+			filepath.Join(local, "pipx", "venvs"):                                                        model.RootKindUserPackage,
+			filepath.Join(h, ".local", "pipx", "venvs"):                                                  model.RootKindUserPackage,
+			filepath.Join(h, ".vscode", "extensions"):                                                    model.RootKindEditorExtension,
+			filepath.Join(roaming, "Claude"):                                                             model.RootKindMCPConfig,
+			filepath.Join(local, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude"):  model.RootKindMCPConfig,
+			filepath.Join(local, "Google", "Chrome", "User Data", "Default", "Extensions"):               model.RootKindBrowserExtension,
+			filepath.Join(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Extensions"): model.RootKindBrowserExtension,
+			filepath.Join(local, "Chromium", "User Data", "Default", "Extensions"):                       model.RootKindBrowserExtension,
+			filepath.Join(local, "Microsoft", "Edge", "User Data", "Profile 1", "Extensions"):            model.RootKindBrowserExtension,
+			filepath.Join(local, "Vivaldi", "User Data", "Default", "Extensions"):                        model.RootKindBrowserExtension,
+			filepath.Join(roaming, "Mozilla", "Firefox", "Profiles"):                                     model.RootKindBrowserExtension,
+			filepath.Join(roaming, "LibreWolf", "Profiles"):                                              model.RootKindBrowserExtension,
+			filepath.Join(roaming, "Waterfox", "Waterfox", "Profiles"):                                   model.RootKindBrowserExtension,
+			filepath.Join(roaming, "Waterfox", "Profiles"):                                               model.RootKindBrowserExtension,
 		}
 		for p, kind := range want {
 			if gotPaths[p] != kind {
@@ -366,18 +466,40 @@ func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
 	psUserModules := filepath.Join(home, "Documents", "PowerShell", "Modules")
 	psAllUsersModules := filepath.Join(programFiles, "PowerShell", "Modules")
+	npmGlobalModules := filepath.Join(appData, "npm", "node_modules")
+	pythonUserSite := filepath.Join(appData, "Python", "Python311", "site-packages")
+	pipxHomeVenvs := filepath.Join(home, "pipx", "venvs")
+	pipxLocalAppDataVenvs := filepath.Join(localAppData, "pipx", "venvs")
+	pipxLegacyVenvs := filepath.Join(home, ".local", "pipx", "venvs")
 	chromeDefaultExt := filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Extensions")
+	braveDefaultExt := filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Extensions")
+	chromiumDefaultExt := filepath.Join(localAppData, "Chromium", "User Data", "Default", "Extensions")
 	edgeDefaultExt := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Extensions")
+	vivaldiDefaultExt := filepath.Join(localAppData, "Vivaldi", "User Data", "Default", "Extensions")
 	firefoxProfiles := filepath.Join(appData, "Mozilla", "Firefox", "Profiles")
+	librewolfProfiles := filepath.Join(appData, "LibreWolf", "Profiles")
+	waterfoxProfiles := filepath.Join(appData, "Waterfox", "Waterfox", "Profiles")
+	waterfoxLegacyProfiles := filepath.Join(appData, "Waterfox", "Profiles")
 	want := map[string]string{
 		filepath.Join(home, "go"):        model.RootKindUserPackage,
 		psUserModules:                    model.RootKindUserPackage,
 		psAllUsersModules:                model.RootKindGlobalPackage,
+		npmGlobalModules:                 model.RootKindUserPackage,
+		pythonUserSite:                   model.RootKindUserPackage,
+		pipxHomeVenvs:                    model.RootKindUserPackage,
+		pipxLocalAppDataVenvs:            model.RootKindUserPackage,
+		pipxLegacyVenvs:                  model.RootKindUserPackage,
 		filepath.Join(appData, "Claude"): model.RootKindMCPConfig,
 		msixClaude:                       model.RootKindMCPConfig,
 		chromeDefaultExt:                 model.RootKindBrowserExtension,
+		braveDefaultExt:                  model.RootKindBrowserExtension,
+		chromiumDefaultExt:               model.RootKindBrowserExtension,
 		edgeDefaultExt:                   model.RootKindBrowserExtension,
+		vivaldiDefaultExt:                model.RootKindBrowserExtension,
 		firefoxProfiles:                  model.RootKindBrowserExtension,
+		librewolfProfiles:                model.RootKindBrowserExtension,
+		waterfoxProfiles:                 model.RootKindBrowserExtension,
+		waterfoxLegacyProfiles:           model.RootKindBrowserExtension,
 	}
 	for p := range want {
 		if err := os.MkdirAll(p, 0o755); err != nil {

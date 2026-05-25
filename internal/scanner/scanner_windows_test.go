@@ -21,6 +21,9 @@ import (
 func TestSensitiveBrowserProfileFilesSkippedBeforeConsidered(t *testing.T) {
 	root := t.TempDir()
 	firefoxProfile := filepath.Join(root, "AppData", "Roaming", "Mozilla", "Firefox", "Profiles", "abcd.default-release")
+	librewolfProfile := filepath.Join(root, "AppData", "Roaming", "LibreWolf", "Profiles", "abcd.default-release")
+	waterfoxProfile := filepath.Join(root, "AppData", "Roaming", "Waterfox", "Waterfox", "Profiles", "abcd.default-release")
+	waterfoxLegacyProfile := filepath.Join(root, "AppData", "Roaming", "Waterfox", "Profiles", "abcd.default-release")
 	writeFile(t, filepath.Join(firefoxProfile, "cookies.sqlite"), "private")
 	writeFile(t, filepath.Join(firefoxProfile, "places.sqlite"), "private")
 	writeFile(t, filepath.Join(firefoxProfile, "favicons.sqlite-wal"), "private")
@@ -31,6 +34,24 @@ func TestSensitiveBrowserProfileFilesSkippedBeforeConsidered(t *testing.T) {
 	writeFile(t, filepath.Join(firefoxProfile, "extensions.json"), `{
   "addons": [
     {"id":"safe@example.com","version":"1.0.0","type":"extension","active":true,"defaultLocale":{"name":"Safe Extension"}}
+  ]
+}`)
+	writeFile(t, filepath.Join(librewolfProfile, "cookies.sqlite"), "private")
+	writeFile(t, filepath.Join(librewolfProfile, "extensions.json"), `{
+  "addons": [
+    {"id":"librewolf-safe@example.com","version":"1.0.0","type":"extension","active":true,"defaultLocale":{"name":"LibreWolf Safe Extension"}}
+  ]
+}`)
+	writeFile(t, filepath.Join(waterfoxProfile, "cookies.sqlite"), "private")
+	writeFile(t, filepath.Join(waterfoxProfile, "extensions.json"), `{
+  "addons": [
+    {"id":"waterfox-nested-safe@example.com","version":"1.0.0","type":"extension","active":true,"defaultLocale":{"name":"Waterfox Nested Safe Extension"}}
+  ]
+}`)
+	writeFile(t, filepath.Join(waterfoxLegacyProfile, "cookies.sqlite"), "private")
+	writeFile(t, filepath.Join(waterfoxLegacyProfile, "extensions.json"), `{
+  "addons": [
+    {"id":"waterfox-legacy-safe@example.com","version":"1.0.0","type":"extension","active":true,"defaultLocale":{"name":"Waterfox Legacy Safe Extension"}}
   ]
 }`)
 	writeFile(t, filepath.Join(firefoxProfile, "cache2", "sentinel.txt"), "blocked")
@@ -61,11 +82,11 @@ func TestSensitiveBrowserProfileFilesSkippedBeforeConsidered(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v; stderr=%s", err, stderr.String())
 	}
-	if res.FilesConsidered != 2 {
-		t.Fatalf("FilesConsidered = %d, want 2 for package-lock.json and extensions.json only; stdout=%s stderr=%s", res.FilesConsidered, stdout.String(), stderr.String())
+	if res.FilesConsidered != 5 {
+		t.Fatalf("FilesConsidered = %d, want 5 for package-lock.json and Firefox-family extensions.json files only; stdout=%s stderr=%s", res.FilesConsidered, stdout.String(), stderr.String())
 	}
 
-	var sawFirefox, sawNPM bool
+	var sawFirefox, sawLibreWolf, sawWaterfoxNested, sawWaterfoxLegacy, sawNPM bool
 	for _, line := range bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n")) {
 		if len(line) == 0 {
 			continue
@@ -82,12 +103,84 @@ func TestSensitiveBrowserProfileFilesSkippedBeforeConsidered(t *testing.T) {
 		if r.SourceType == "browser-extension" && r.PackageName == "Safe Extension" {
 			sawFirefox = true
 		}
+		if r.SourceType == "browser-extension" && r.PackageName == "LibreWolf Safe Extension" {
+			sawLibreWolf = true
+		}
+		if r.SourceType == "browser-extension" && r.PackageName == "Waterfox Nested Safe Extension" {
+			sawWaterfoxNested = true
+		}
+		if r.SourceType == "browser-extension" && r.PackageName == "Waterfox Legacy Safe Extension" {
+			sawWaterfoxLegacy = true
+		}
 		if r.SourceType == "npm-lockfile" && r.PackageName == "lodash" {
 			sawNPM = true
 		}
 	}
-	if !sawFirefox || !sawNPM {
-		t.Fatalf("required metadata discovery regressed: firefox=%v npm=%v stdout=%s", sawFirefox, sawNPM, stdout.String())
+	if !sawFirefox || !sawLibreWolf || !sawWaterfoxNested || !sawWaterfoxLegacy || !sawNPM {
+		t.Fatalf("required metadata discovery regressed: firefox=%v librewolf=%v waterfox_nested=%v waterfox_legacy=%v npm=%v stdout=%s", sawFirefox, sawLibreWolf, sawWaterfoxNested, sawWaterfoxLegacy, sawNPM, stdout.String())
+	}
+}
+
+func TestWindowsStrictParityPackageRootsEmitRecords(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "AppData", "Roaming", "npm", "node_modules", "smoke-npm-root", "package.json"), `{
+  "name": "smoke-npm-root",
+  "version": "1.0.0"
+}`)
+	writeFile(t, filepath.Join(root, "AppData", "Roaming", "Python", "Python311", "site-packages", "SmokePythonRoot-1.0.0.dist-info", "METADATA"), "Metadata-Version: 2.1\nName: SmokePythonRoot\nVersion: 1.0.0\n\n")
+	writeFile(t, filepath.Join(root, "pipx", "venvs", "smoke-pipx", "Lib", "site-packages", "SmokePipxRoot-2.0.0.dist-info", "METADATA"), "Metadata-Version: 2.1\nName: SmokePipxRoot\nVersion: 2.0.0\n\n")
+	writeFile(t, filepath.Join(root, "AppData", "Local", "pipx", "venvs", "smoke-pipx-local", "Lib", "site-packages", "SmokePipxLocalRoot-3.0.0.dist-info", "METADATA"), "Metadata-Version: 2.1\nName: SmokePipxLocalRoot\nVersion: 3.0.0\n\n")
+	writeFile(t, filepath.Join(root, ".local", "pipx", "venvs", "smoke-pipx-legacy", "Lib", "site-packages", "SmokePipxLegacyRoot-4.0.0.dist-info", "METADATA"), "Metadata-Version: 2.1\nName: SmokePipxLegacyRoot\nVersion: 4.0.0\n\n")
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	em := output.New(stdout, stderr, "r")
+	res, err := Run(context.Background(), Config{
+		Roots:       []Root{{Path: root, Kind: model.RootKindDeepHome}},
+		Profile:     model.ProfileDeep,
+		MaxFileSize: 1 << 20,
+		Concurrency: 1,
+		BaseRecord: model.Record{
+			SchemaVersion:  model.SchemaVersion,
+			ScannerName:    model.ScannerName,
+			ScannerVersion: "test",
+			RunID:          "r",
+			ScanTime:       time.Now().UTC().Format(time.RFC3339Nano),
+		},
+		Emitter: em,
+	})
+	if err != nil {
+		t.Fatalf("Run: %v; stderr=%s", err, stderr.String())
+	}
+	if res.FilesConsidered != 5 {
+		t.Fatalf("FilesConsidered = %d, want 5 Windows strict-parity metadata files; stdout=%s stderr=%s", res.FilesConsidered, stdout.String(), stderr.String())
+	}
+
+	want := map[string]string{
+		"npm:smoke-npm-root:1.0.0":       "npm-node_modules",
+		"pypi:SmokePythonRoot:1.0.0":     "pypi-dist-info",
+		"pypi:SmokePipxRoot:2.0.0":       "pypi-dist-info",
+		"pypi:SmokePipxLocalRoot:3.0.0":  "pypi-dist-info",
+		"pypi:SmokePipxLegacyRoot:4.0.0": "pypi-dist-info",
+	}
+	for _, line := range bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n")) {
+		if len(line) == 0 {
+			continue
+		}
+		var r model.Record
+		if err := json.Unmarshal(line, &r); err != nil {
+			t.Fatalf("bad ndjson line: %v: %s", err, line)
+		}
+		key := r.Ecosystem + ":" + r.PackageName + ":" + r.Version
+		if sourceType, ok := want[key]; ok {
+			if r.SourceType != sourceType {
+				t.Errorf("%s source_type = %q, want %q", key, r.SourceType, sourceType)
+			}
+			delete(want, key)
+		}
+	}
+	if len(want) > 0 {
+		t.Fatalf("missing Windows strict-parity package records: %v; stdout=%s stderr=%s", want, stdout.String(), stderr.String())
 	}
 }
 

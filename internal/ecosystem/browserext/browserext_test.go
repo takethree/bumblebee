@@ -120,6 +120,9 @@ func TestIsFirefoxExtensionsJSON(t *testing.T) {
 	}{
 		{"/u/Library/Application Support/Firefox/Profiles/abcd.default/extensions.json", true},
 		{`C:\Users\alice\AppData\Roaming\Mozilla\Firefox\Profiles\abcd.default-release\extensions.json`, true},
+		{`C:\Users\alice\AppData\Roaming\LibreWolf\Profiles\abcd.default-release\extensions.json`, true},
+		{`C:\Users\alice\AppData\Roaming\Waterfox\Waterfox\Profiles\abcd.default-release\extensions.json`, true},
+		{`C:\Users\alice\AppData\Roaming\Waterfox\Profiles\abcd.default-release\extensions.json`, true},
 		{"/u/.mozilla/firefox/abcd.default-release/extensions.json", true},
 		{"/u/snap/firefox/common/.mozilla/firefox/abcd.default/extensions.json", true},
 		{"/u/.var/app/org.mozilla.firefox/.mozilla/firefox/abcd.default/extensions.json", true},

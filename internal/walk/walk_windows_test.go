@@ -27,14 +27,23 @@ func TestWalkSkipsWindowsSensitiveSubtrees(t *testing.T) {
 		filepath.Join(root, "AppData", "Roaming", "Mozilla", "Firefox", "Profiles", "abcd.default", "storage"),
 		filepath.Join(root, "AppData", "Roaming", "Mozilla", "Firefox", "Profiles", "abcd.default", "sessionstore-backups"),
 		filepath.Join(root, "AppData", "Roaming", "Mozilla", "Firefox", "Profiles", "abcd.default", "extensions"),
+		filepath.Join(root, "AppData", "Roaming", "LibreWolf", "Profiles", "abcd.default", "cache2"),
+		filepath.Join(root, "AppData", "Roaming", "Waterfox", "Waterfox", "Profiles", "abcd.default", "storage"),
+		filepath.Join(root, "AppData", "Roaming", "Waterfox", "Profiles", "abcd.default", "extensions"),
 	}
 	for _, dir := range blocked {
 		mustWrite(t, filepath.Join(dir, "sentinel.txt"), "blocked")
 	}
 	wantProject := filepath.Join(root, "code", "proj", "package-lock.json")
 	wantFirefox := filepath.Join(root, "AppData", "Roaming", "Mozilla", "Firefox", "Profiles", "abcd.default", "extensions.json")
+	wantLibreWolf := filepath.Join(root, "AppData", "Roaming", "LibreWolf", "Profiles", "abcd.default", "extensions.json")
+	wantWaterfox := filepath.Join(root, "AppData", "Roaming", "Waterfox", "Waterfox", "Profiles", "abcd.default", "extensions.json")
+	wantWaterfoxLegacy := filepath.Join(root, "AppData", "Roaming", "Waterfox", "Profiles", "abcd.default", "extensions.json")
 	mustWrite(t, wantProject, "{}")
 	mustWrite(t, wantFirefox, `{"addons":[]}`)
+	mustWrite(t, wantLibreWolf, `{"addons":[]}`)
+	mustWrite(t, wantWaterfox, `{"addons":[]}`)
+	mustWrite(t, wantWaterfoxLegacy, `{"addons":[]}`)
 
 	var seen []string
 	err := Walk(Options{
@@ -59,6 +68,15 @@ func TestWalkSkipsWindowsSensitiveSubtrees(t *testing.T) {
 	}
 	if !containsPath(seen, wantFirefox) {
 		t.Errorf("expected Firefox extensions.json to remain visitable; saw %v", seen)
+	}
+	if !containsPath(seen, wantLibreWolf) {
+		t.Errorf("expected LibreWolf extensions.json to remain visitable; saw %v", seen)
+	}
+	if !containsPath(seen, wantWaterfox) {
+		t.Errorf("expected nested Waterfox extensions.json to remain visitable; saw %v", seen)
+	}
+	if !containsPath(seen, wantWaterfoxLegacy) {
+		t.Errorf("expected legacy Waterfox extensions.json to remain visitable; saw %v", seen)
 	}
 }
 

@@ -51,6 +51,12 @@ func isFirefoxProfileSensitiveDir(fullPath, base string) bool {
 	}
 	p := filepath.ToSlash(filepath.Clean(fullPath))
 	return strings.Contains(p, "/AppData/Roaming/Mozilla/Firefox/Profiles/") ||
+		strings.Contains(p, "/AppData/Roaming/LibreWolf/Profiles/") ||
+		strings.Contains(p, "/AppData/Roaming/Waterfox/Waterfox/Profiles/") ||
+		strings.Contains(p, "/AppData/Roaming/Waterfox/Profiles/") ||
 		strings.Contains(p, "/Mozilla/Firefox/Profiles/") ||
+		strings.Contains(p, "/LibreWolf/Profiles/") ||
+		strings.Contains(p, "/Waterfox/Waterfox/Profiles/") ||
+		strings.Contains(p, "/Waterfox/Profiles/") ||
 		strings.Contains(p, "/.mozilla/firefox/")
 }

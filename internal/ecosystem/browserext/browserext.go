@@ -199,6 +199,7 @@ func IsFirefoxExtensionsJSON(path string) bool {
 	case strings.Contains(p, "/Firefox/Profiles/"),
 		strings.Contains(p, "/Firefox/"),
 		strings.Contains(p, "/LibreWolf/Profiles/"),
+		strings.Contains(p, "/Waterfox/Waterfox/Profiles/"),
 		strings.Contains(p, "/Waterfox/Profiles/"),
 		strings.Contains(p, "/.mozilla/firefox/"),
 		strings.Contains(p, "/.librewolf/"),

@@ -33,7 +33,13 @@ func isBrowserProfilePath(path string) bool {
 		"/AppData/Local/BraveSoftware/Brave-Browser/User Data/",
 		"/AppData/Local/Vivaldi/User Data/",
 		"/AppData/Roaming/Mozilla/Firefox/Profiles/",
+		"/AppData/Roaming/LibreWolf/Profiles/",
+		"/AppData/Roaming/Waterfox/Waterfox/Profiles/",
+		"/AppData/Roaming/Waterfox/Profiles/",
 		"/Mozilla/Firefox/Profiles/",
+		"/LibreWolf/Profiles/",
+		"/Waterfox/Waterfox/Profiles/",
+		"/Waterfox/Profiles/",
 		"/.mozilla/firefox/",
 	} {
 		if strings.Contains(path, marker) {

@@ -87,11 +87,13 @@ package-manager execution.
 ## Goal 3: Add Windows Baseline Root Defaults
 
 - [x] Add `%USERPROFILE%\go`.
-- [ ] Add user npm/global package locations where reliable.
-- [ ] Add user Python locations under `%APPDATA%`, `%LOCALAPPDATA%`, and common install roots.
-- [ ] Add pipx and virtualenv-style user package locations where reliable.
-- [ ] Add Ruby/Bundler user package locations if present.
-- [ ] Add Composer user/global package locations if present.
+- [x] Add source-backed user npm/global package roots under `%APPDATA%\npm\node_modules`.
+- [x] Add Windows Python user site roots under `%APPDATA%\Python\Python*\site-packages`.
+- [ ] Defer `%LOCALAPPDATA%` and common Python install roots until they are source-validated as a separate compatibility slice.
+- [x] Add source-backed pipx venv roots under `%USERPROFILE%\pipx\venvs`, `%LOCALAPPDATA%\pipx\venvs`, and `%USERPROFILE%\.local\pipx\venvs`.
+- [ ] Defer arbitrary virtualenv discovery; project/deep scans already find virtualenv metadata under supplied roots.
+- [ ] Defer Ruby/Bundler user package roots until there is a cross-platform baseline decision.
+- [ ] Defer Composer user/global package roots until there is a cross-platform baseline decision.
 - [x] Add Windows VS Code extension roots.
 - [x] Add Windows Cursor extension roots.
 - [x] Add Windows Windsurf extension roots.
@@ -107,17 +109,47 @@ baseline support requires native AppData, user profile, and tool-specific paths.
 
 - [x] Add Chrome profile extension roots under `%LOCALAPPDATA%\Google\Chrome\User Data`.
 - [x] Add Edge profile extension roots under `%LOCALAPPDATA%\Microsoft\Edge\User Data`.
-- [ ] Add Brave profile extension roots under `%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data`.
-- [ ] Add Chromium profile extension roots under `%LOCALAPPDATA%\Chromium\User Data`.
-- [ ] Add Vivaldi profile extension roots under `%LOCALAPPDATA%\Vivaldi\User Data`.
+- [x] Add Brave profile extension roots under `%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data`.
+- [x] Add Chromium profile extension roots under `%LOCALAPPDATA%\Chromium\User Data`.
+- [x] Add Vivaldi profile extension roots under `%LOCALAPPDATA%\Vivaldi\User Data`.
 - [x] Add Firefox profile roots under `%APPDATA%\Mozilla\Firefox\Profiles`.
-- [ ] Add LibreWolf and Waterfox Windows profile roots if their layouts are reliable.
+- [x] Add LibreWolf and Waterfox Windows profile roots if their layouts are reliable.
 - [x] Preserve the current narrow profile strategy: `Default` and `Profile 1` through `Profile 9`.
 - [x] Avoid scanning cookies, login databases, local storage, cache, and history.
 - [x] Add Windows browser root tests.
 
 Why: the browser scanners are mostly portable, but the curated baseline roots
 currently know only macOS and Linux profile locations.
+
+Receipt from 2026-05-25 remaining Windows browser root validation:
+
+- Added Windows baseline roots for Brave, Chromium, and Vivaldi using the same
+  narrow Chromium-family strategy as Chrome and Edge: only `Default` and
+  `Profile 1` through `Profile 9` `Extensions` directories are candidates.
+- Added Firefox-family profile-parent roots for LibreWolf and Waterfox. Waterfox
+  includes both `%APPDATA%\Waterfox\Waterfox\Profiles`, which is documented by
+  Waterfox support, and `%APPDATA%\Waterfox\Profiles`, which was created by the
+  signed Waterfox 6.6.13 installer during local validation.
+- Validated real root creation from official sources: Brave official release
+  zip with matching release SHA256, Chromium official Win_x64 snapshot
+  `LAST_CHANGE=1635789`, signed Vivaldi Technologies AS installer, LibreWolf
+  official portable build signed by OSSign as documented by LibreWolf, and
+  signed BrowserWorks Waterfox installer with matching official SHA512.
+- Extended Windows sensitive browser-profile guards so LibreWolf and both
+  Waterfox profile layouts keep cookies, history, credential stores, storage,
+  cache, and per-extension payload directories out of deep scans while leaving
+  `extensions.json` scannable.
+- Added controlled smoke coverage for Brave, Chromium, Vivaldi, LibreWolf, and
+  both Waterfox profile layouts. The smoke fixture proves package-record
+  emission without reading or writing real personal browser profile contents.
+- Corrective live-profile validation replaced an invalid empty-directory check:
+  `go run ./cmd/bumblebee scan --profile baseline --ecosystem browser-extension`
+  emitted real package records from browser-created data for Brave, Chromium,
+  Vivaldi, LibreWolf, and the observed `%APPDATA%\Waterfox\Profiles` layout.
+  The scan output is outside the repo at
+  `%TEMP%\bumblebee-live-browser-test-20260525-154256\browser-extension-scan.ndjson`.
+  The alternate `%APPDATA%\Waterfox\Waterfox\Profiles` layout remains
+  source-documented but not observed on this host.
 
 ## Goal 5: Design Windows Multi-User Scanning
 
@@ -493,10 +525,10 @@ Known limitations / current support boundary:
 
 - Tested support: the current Windows compatibility layer builds
   `bumblebee.exe`, passes `selftest`, previews baseline roots, scans explicit
-  project roots, scans a real current-user baseline, scans Chrome/Edge/Firefox
-  browser extension roots when present, scans Windows Claude Desktop MCP config
-  roots when present, writes file output in append mode, sends HTTP output to a
-  local endpoint, and emits schema-compatible NDJSON with
+  project roots, scans a real current-user baseline, scans implemented browser
+  extension roots when present, scans Windows Claude Desktop MCP config roots
+  when present, writes file output in append mode, sends HTTP output to a local
+  endpoint, and emits schema-compatible NDJSON with
   `scan_summary.status=complete` for healthy runs.
 - Platform support boundary: the Windows compatibility layer documents a Go
   runtime floor of Windows 10 or Windows Server 2016 and newer, but the
@@ -508,13 +540,21 @@ Known limitations / current support boundary:
   non-serviced Windows 10 paths remain unclaimed unless separately tested and
   serviced.
 - Root coverage boundary: baseline roots currently cover the implemented
-  Windows Go user root, editor extension roots, MCP config roots, Chrome/Edge
-  extension roots, and Firefox profile roots. User npm/global, Python, pipx,
-  virtualenv, Ruby/Bundler, and Composer roots remain planned but unimplemented
-  until Goal 3 items are completed.
-- Browser boundary: Chrome, Edge, and Firefox are the exercised browser families
-  so far. Brave, Chromium, Vivaldi, LibreWolf, and Waterfox roots remain
-  unclaimed until their Goal 4 items are implemented and tested.
+  Windows Go user root, editor extension roots, MCP config roots,
+  npm global root under `%APPDATA%\npm\node_modules`, Python user site roots
+  under `%APPDATA%\Python\Python*\site-packages`, pipx venv roots under
+  `%USERPROFILE%\pipx\venvs`, `%LOCALAPPDATA%\pipx\venvs`, and
+  `%USERPROFILE%\.local\pipx\venvs`, plus the shared cross-platform
+  `%USERPROFILE%\.local\share\pipx\venvs` candidate, Chrome/Edge/Brave/
+  Chromium/Vivaldi extension roots, and Firefox/LibreWolf/Waterfox profile
+  roots. Arbitrary virtualenv discovery, custom npm/Python/pipx prefixes,
+  Ruby/Bundler, and Composer roots remain deferred until separate
+  compatibility-layer or cross-platform baseline decisions are made.
+- Browser boundary: Chrome, Edge, Brave, Chromium, Vivaldi, Firefox,
+  LibreWolf, and Waterfox are the exercised browser families so far. Chromium
+  was validated from an official snapshot archive rather than a normal stable
+  installer, and Waterfox keeps both documented and observed profile-parent
+  variants in scope.
 - Multi-user boundary: Windows `--all-users` uses local profile-directory
   enumeration only, matching the compatibility-layer approach. Registry, SID,
   domain, Azure AD, OneDrive, and redirected-profile discovery are not claimed;
@@ -562,7 +602,15 @@ Known gaps from the smoke run:
 - [x] Run a real-profile MCP smoke on a machine with a Windows Claude Desktop config root present.
 - [x] Decide whether operator-facing docs should clarify that `diagnostics_count` includes informational diagnostics, not only warnings or errors.
 - [x] Add a redacted smoke-test receipt pattern for future Windows validation runs so raw NDJSON inventory is never checked in.
-- [ ] Keep the remaining browser families open until separately exercised.
+- [x] Keep the remaining browser families open until separately exercised.
+
+Goal 3A strict-parity receipt:
+
+- [x] Source-validated `%APPDATA%\npm\node_modules`, `%APPDATA%\Python\Python*\site-packages`, `%USERPROFILE%\pipx\venvs`, `%LOCALAPPDATA%\pipx\venvs`, and `%USERPROFILE%\.local\pipx\venvs`.
+- [x] Added only literal, existence-filtered Windows baseline root candidates in the Windows platform hook.
+- [x] Kept `%USERPROFILE%\.local\share\pipx\venvs` in shared baseline handling rather than duplicating it in the Windows hook.
+- [x] Added controlled tests and smoke fixtures that prove npm and PyPI records emit from the new Windows roots.
+- [x] Kept Ruby/Bundler, Composer, custom npm/Python/pipx prefixes, arbitrary virtualenv discovery, registry reads, WSL, and redirected known folders out of the current support claim.
 
 ## Goal 13: Keep The Fork Easy To Update
 

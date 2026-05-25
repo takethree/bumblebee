@@ -39,6 +39,14 @@ $nugetScanErr = Join-Path $EvidenceRoot "nuget-project.stderr.txt"
 $powershellFixtureRoot = Join-Path $EvidenceRoot "PowerShell fixture modules"
 $powershellScanOut = Join-Path $EvidenceRoot "powershell-modules.ndjson"
 $powershellScanErr = Join-Path $EvidenceRoot "powershell-modules.stderr.txt"
+$browserFixtureRoot = Join-Path $EvidenceRoot "browser fixture roots"
+$browserScanOut = Join-Path $EvidenceRoot "browser-extensions.ndjson"
+$browserScanErr = Join-Path $EvidenceRoot "browser-extensions.stderr.txt"
+$strictParityFixtureHome = Join-Path $EvidenceRoot "strict-parity-home"
+$strictParityRootsOut = Join-Path $EvidenceRoot "strict-parity-roots.tsv"
+$strictParityRootsErr = Join-Path $EvidenceRoot "strict-parity-roots.stderr.txt"
+$strictParityScanOut = Join-Path $EvidenceRoot "strict-parity-scan.ndjson"
+$strictParityScanErr = Join-Path $EvidenceRoot "strict-parity-scan.stderr.txt"
 
 function ConvertTo-WindowsCommandLineArgument {
     param([AllowNull()][string]$Argument)
@@ -253,6 +261,72 @@ function New-SmokePowerShellFixture {
     $expressionRoot = Join-Path $Root "ExpressionVersion"
     New-Item -ItemType Directory -Force -Path $expressionRoot | Out-Null
     [System.IO.File]::WriteAllText((Join-Path $expressionRoot "ExpressionVersion.psd1"), "@{ ModuleVersion = (Get-Date) }", [System.Text.UTF8Encoding]::new($false))
+}
+
+function New-SmokeBrowserFixture {
+    param([Parameter(Mandatory = $true)][string]$Root)
+
+    $chromiumCases = @(
+        @{ Browser = "BraveSoftware\Brave-Browser"; Name = "Smoke Brave Extension"; Id = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; Version = "1.0.0" },
+        @{ Browser = "Chromium"; Name = "Smoke Chromium Extension"; Id = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"; Version = "2.0.0" },
+        @{ Browser = "Vivaldi"; Name = "Smoke Vivaldi Extension"; Id = "cccccccccccccccccccccccccccccccc"; Version = "3.0.0" }
+    )
+    foreach ($case in $chromiumCases) {
+        $manifestDir = Join-Path $Root "$($case.Browser)\User Data\Default\Extensions\$($case.Id)\$($case.Version)"
+        New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
+        $manifest = @{
+            manifest_version = 3
+            name = $case.Name
+            version = $case.Version
+        } | ConvertTo-Json -Compress
+        [System.IO.File]::WriteAllText((Join-Path $manifestDir "manifest.json"), $manifest, [System.Text.UTF8Encoding]::new($false))
+    }
+
+    $firefoxCases = @(
+        @{ Path = "LibreWolf\Profiles\abcd.default"; Name = "Smoke LibreWolf Addon"; Id = "librewolf-smoke@example.com"; Version = "4.0.0" },
+        @{ Path = "Waterfox\Waterfox\Profiles\abcd.default"; Name = "Smoke Waterfox Nested Addon"; Id = "waterfox-nested-smoke@example.com"; Version = "5.0.0" },
+        @{ Path = "Waterfox\Profiles\abcd.default"; Name = "Smoke Waterfox Legacy Addon"; Id = "waterfox-legacy-smoke@example.com"; Version = "6.0.0" }
+    )
+    foreach ($case in $firefoxCases) {
+        $profileDir = Join-Path $Root $case.Path
+        New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+        $extensions = @{
+            addons = @(
+                @{
+                    id = $case.Id
+                    version = $case.Version
+                    type = "extension"
+                    active = $true
+                    defaultLocale = @{ name = $case.Name }
+                }
+            )
+        } | ConvertTo-Json -Depth 5 -Compress
+        [System.IO.File]::WriteAllText((Join-Path $profileDir "extensions.json"), $extensions, [System.Text.UTF8Encoding]::new($false))
+    }
+}
+
+function New-SmokeStrictParityRootFixture {
+    param([Parameter(Mandatory = $true)][string]$FixtureHome)
+
+    $appData = Join-Path $FixtureHome "AppData\Roaming"
+    $localAppData = Join-Path $FixtureHome "AppData\Local"
+    $npmRoot = Join-Path $appData "npm\node_modules\smoke-npm-root"
+    New-Item -ItemType Directory -Force -Path $npmRoot | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $npmRoot "package.json"), '{"name":"smoke-npm-root","version":"1.0.0"}', [System.Text.UTF8Encoding]::new($false))
+
+    $pythonRoot = Join-Path $appData "Python\Python311\site-packages\SmokePythonRoot-1.0.0.dist-info"
+    New-Item -ItemType Directory -Force -Path $pythonRoot | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $pythonRoot "METADATA"), "Metadata-Version: 2.1`nName: SmokePythonRoot`nVersion: 1.0.0`n`n", [System.Text.UTF8Encoding]::new($false))
+
+    $pipxCases = @(
+        @{ Root = (Join-Path $FixtureHome "pipx\venvs\smoke-pipx\Lib\site-packages\SmokePipxRoot-2.0.0.dist-info"); Name = "SmokePipxRoot"; Version = "2.0.0" },
+        @{ Root = (Join-Path $localAppData "pipx\venvs\smoke-pipx-local\Lib\site-packages\SmokePipxLocalRoot-3.0.0.dist-info"); Name = "SmokePipxLocalRoot"; Version = "3.0.0" },
+        @{ Root = (Join-Path $FixtureHome ".local\pipx\venvs\smoke-pipx-legacy\Lib\site-packages\SmokePipxLegacyRoot-4.0.0.dist-info"); Name = "SmokePipxLegacyRoot"; Version = "4.0.0" }
+    )
+    foreach ($case in $pipxCases) {
+        New-Item -ItemType Directory -Force -Path $case.Root | Out-Null
+        [System.IO.File]::WriteAllText((Join-Path $case.Root "METADATA"), "Metadata-Version: 2.1`nName: $($case.Name)`nVersion: $($case.Version)`n`n", [System.Text.UTF8Encoding]::new($false))
+    }
 }
 
 function Get-FreeTcpPort {
@@ -520,6 +594,53 @@ if ($code -eq 0) {
     ) $powershellScanOut $powershellScanErr
     Add-CommandResult $commands "scan_project_powershell" $powershellScanCode
     if ($powershellScanCode -ne 0) { $failures.Add("project PowerShell module scan failed") }
+
+    New-SmokeBrowserFixture $browserFixtureRoot
+    $browserScanCode = Invoke-Captured $exePath @(
+        "scan",
+        "--profile", "project",
+        "--root", $browserFixtureRoot,
+        "--ecosystem", "browser-extension",
+        "--max-duration", $duration
+    ) $browserScanOut $browserScanErr
+    Add-CommandResult $commands "scan_project_browser_extensions" $browserScanCode
+    if ($browserScanCode -ne 0) { $failures.Add("project browser extension scan failed") }
+
+    New-SmokeStrictParityRootFixture $strictParityFixtureHome
+    $oldUserProfile = $env:USERPROFILE
+    $oldHomeDrive = $env:HOMEDRIVE
+    $oldHomePath = $env:HOMEPATH
+    $oldAppData = $env:APPDATA
+    $oldLocalAppData = $env:LOCALAPPDATA
+    try {
+        $env:USERPROFILE = $strictParityFixtureHome
+        $env:HOMEDRIVE = Split-Path -Qualifier $strictParityFixtureHome
+        $env:HOMEPATH = Split-Path -NoQualifier $strictParityFixtureHome
+        $env:APPDATA = Join-Path $strictParityFixtureHome "AppData\Roaming"
+        $env:LOCALAPPDATA = Join-Path $strictParityFixtureHome "AppData\Local"
+
+        $strictRootsCode = Invoke-Captured $exePath @(
+            "roots",
+            "--profile", "baseline"
+        ) $strictParityRootsOut $strictParityRootsErr
+        Add-CommandResult $commands "roots_strict_parity_fixture" $strictRootsCode
+        if ($strictRootsCode -ne 0) { $failures.Add("strict-parity fixture roots failed") }
+
+        $strictScanCode = Invoke-Captured $exePath @(
+            "scan",
+            "--profile", "baseline",
+            "--ecosystem", "npm,pypi",
+            "--max-duration", $duration
+        ) $strictParityScanOut $strictParityScanErr
+        Add-CommandResult $commands "scan_strict_parity_fixture" $strictScanCode
+        if ($strictScanCode -ne 0) { $failures.Add("strict-parity fixture scan failed") }
+    } finally {
+        if ($null -eq $oldUserProfile) { Remove-Item Env:USERPROFILE -ErrorAction SilentlyContinue } else { $env:USERPROFILE = $oldUserProfile }
+        if ($null -eq $oldHomeDrive) { Remove-Item Env:HOMEDRIVE -ErrorAction SilentlyContinue } else { $env:HOMEDRIVE = $oldHomeDrive }
+        if ($null -eq $oldHomePath) { Remove-Item Env:HOMEPATH -ErrorAction SilentlyContinue } else { $env:HOMEPATH = $oldHomePath }
+        if ($null -eq $oldAppData) { Remove-Item Env:APPDATA -ErrorAction SilentlyContinue } else { $env:APPDATA = $oldAppData }
+        if ($null -eq $oldLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $oldLocalAppData }
+    }
 }
 
 $roots = @()
@@ -558,8 +679,14 @@ $goRoot = if ($env:USERPROFILE) { Join-Path $env:USERPROFILE "go" } else { "" }
 $appDataClaude = if ($env:APPDATA) { Join-Path $env:APPDATA "Claude" } else { "" }
 $msixClaude = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude" } else { "" }
 $chromeDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data\Default\Extensions" } else { "" }
+$braveDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "BraveSoftware\Brave-Browser\User Data\Default\Extensions" } else { "" }
+$chromiumDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Chromium\User Data\Default\Extensions" } else { "" }
 $edgeDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data\Default\Extensions" } else { "" }
+$vivaldiDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Vivaldi\User Data\Default\Extensions" } else { "" }
 $firefoxProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "Mozilla\Firefox\Profiles" } else { "" }
+$librewolfProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "LibreWolf\Profiles" } else { "" }
+$waterfoxProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "Waterfox\Waterfox\Profiles" } else { "" }
+$waterfoxLegacyProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "Waterfox\Profiles" } else { "" }
 $goRootExists = if ($goRoot) { Test-Path $goRoot } else { $false }
 $goRootListed = if ($goRoot) { @($roots | Where-Object { $_.Path -eq $goRoot }).Count -gt 0 } else { $false }
 $appDataClaudeExists = if ($appDataClaude) { Test-Path $appDataClaude } else { $false }
@@ -568,10 +695,22 @@ $msixClaudeExists = if ($msixClaude) { Test-Path $msixClaude } else { $false }
 $msixClaudeListed = if ($msixClaude) { @($roots | Where-Object { $_.Path -eq $msixClaude }).Count -gt 0 } else { $false }
 $chromeDefaultExtensionsExists = if ($chromeDefaultExtensions) { Test-Path $chromeDefaultExtensions } else { $false }
 $chromeDefaultExtensionsListed = if ($chromeDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $chromeDefaultExtensions }).Count -gt 0 } else { $false }
+$braveDefaultExtensionsExists = if ($braveDefaultExtensions) { Test-Path $braveDefaultExtensions } else { $false }
+$braveDefaultExtensionsListed = if ($braveDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $braveDefaultExtensions }).Count -gt 0 } else { $false }
+$chromiumDefaultExtensionsExists = if ($chromiumDefaultExtensions) { Test-Path $chromiumDefaultExtensions } else { $false }
+$chromiumDefaultExtensionsListed = if ($chromiumDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $chromiumDefaultExtensions }).Count -gt 0 } else { $false }
 $edgeDefaultExtensionsExists = if ($edgeDefaultExtensions) { Test-Path $edgeDefaultExtensions } else { $false }
 $edgeDefaultExtensionsListed = if ($edgeDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $edgeDefaultExtensions }).Count -gt 0 } else { $false }
+$vivaldiDefaultExtensionsExists = if ($vivaldiDefaultExtensions) { Test-Path $vivaldiDefaultExtensions } else { $false }
+$vivaldiDefaultExtensionsListed = if ($vivaldiDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $vivaldiDefaultExtensions }).Count -gt 0 } else { $false }
 $firefoxProfilesExists = if ($firefoxProfiles) { Test-Path $firefoxProfiles } else { $false }
 $firefoxProfilesListed = if ($firefoxProfiles) { @($roots | Where-Object { $_.Path -eq $firefoxProfiles }).Count -gt 0 } else { $false }
+$librewolfProfilesExists = if ($librewolfProfiles) { Test-Path $librewolfProfiles } else { $false }
+$librewolfProfilesListed = if ($librewolfProfiles) { @($roots | Where-Object { $_.Path -eq $librewolfProfiles }).Count -gt 0 } else { $false }
+$waterfoxProfilesExists = if ($waterfoxProfiles) { Test-Path $waterfoxProfiles } else { $false }
+$waterfoxProfilesListed = if ($waterfoxProfiles) { @($roots | Where-Object { $_.Path -eq $waterfoxProfiles }).Count -gt 0 } else { $false }
+$waterfoxLegacyProfilesExists = if ($waterfoxLegacyProfiles) { Test-Path $waterfoxLegacyProfiles } else { $false }
+$waterfoxLegacyProfilesListed = if ($waterfoxLegacyProfiles) { @($roots | Where-Object { $_.Path -eq $waterfoxLegacyProfiles }).Count -gt 0 } else { $false }
 $firefoxProfileCount = 0
 $firefoxExtensionsJsonProfileCount = 0
 if ($firefoxProfilesExists) {
@@ -824,6 +963,195 @@ if ($commands.Contains("scan_project_powershell") -and $commands["scan_project_p
     }
 }
 
+$browserRecords = Read-JsonLines $browserScanOut
+$browserRecordTypeCounts = [ordered]@{}
+$browserSourceTypeCounts = [ordered]@{}
+$browserManagerCounts = [ordered]@{}
+$browserPackages = New-Object System.Collections.Generic.List[object]
+$browserSummary = $null
+foreach ($record in $browserRecords) {
+    $recordType = [string]$record.record_type
+    if ([string]::IsNullOrWhiteSpace($recordType)) {
+        continue
+    }
+    if (-not $browserRecordTypeCounts.Contains($recordType)) {
+        $browserRecordTypeCounts[$recordType] = 0
+    }
+    $browserRecordTypeCounts[$recordType]++
+    if ($recordType -eq "package") {
+        $browserPackages.Add($record)
+        $sourceType = [string]$record.source_type
+        if (-not [string]::IsNullOrWhiteSpace($sourceType)) {
+            if (-not $browserSourceTypeCounts.Contains($sourceType)) {
+                $browserSourceTypeCounts[$sourceType] = 0
+            }
+            $browserSourceTypeCounts[$sourceType]++
+        }
+        $manager = [string]$record.package_manager
+        if (-not [string]::IsNullOrWhiteSpace($manager)) {
+            if (-not $browserManagerCounts.Contains($manager)) {
+                $browserManagerCounts[$manager] = 0
+            }
+            $browserManagerCounts[$manager]++
+        }
+    }
+    if ($recordType -eq "scan_summary") {
+        $browserSummary = $record
+    }
+}
+
+$browserRequiredFields = @("ecosystem", "package_name", "normalized_name", "version", "package_manager", "source_type", "source_file", "project_path", "root_kind", "confidence")
+$browserMissingRequiredFields = [ordered]@{}
+foreach ($field in $browserRequiredFields) {
+    $missing = @($browserPackages | Where-Object { $null -eq (Get-JsonProperty $_ $field) -or [string]::IsNullOrWhiteSpace([string](Get-JsonProperty $_ $field)) }).Count
+    $browserMissingRequiredFields[$field] = $missing
+}
+$browserProjectRootCount = @($browserPackages | Where-Object { (Get-JsonProperty $_ "root_kind") -eq "project_root" }).Count
+$browserExpectedNames = @(
+    "Smoke Brave Extension",
+    "Smoke Chromium Extension",
+    "Smoke Vivaldi Extension",
+    "Smoke LibreWolf Addon",
+    "Smoke Waterfox Nested Addon",
+    "Smoke Waterfox Legacy Addon"
+)
+$browserExpectedNamesEmitted = [ordered]@{}
+foreach ($name in $browserExpectedNames) {
+    $browserExpectedNamesEmitted[$name] = @($browserPackages | Where-Object { (Get-JsonProperty $_ "package_name") -eq $name }).Count -eq 1
+}
+
+if ($commands.Contains("scan_project_browser_extensions") -and $commands["scan_project_browser_extensions"].exit_code -eq 0) {
+    if ($browserPackages.Count -ne 6) {
+        $failures.Add("browser extension smoke emitted $($browserPackages.Count) package records, want 6")
+    }
+    if ($null -eq $browserSummary) {
+        $failures.Add("browser extension smoke scan_summary was missing")
+    } elseif ($browserSummary.status -ne "complete") {
+        $failures.Add("browser extension smoke scan_summary status was not complete")
+    }
+    foreach ($field in $browserRequiredFields) {
+        if ($browserMissingRequiredFields[$field] -ne 0) {
+            $failures.Add("browser extension smoke missing required field $field")
+        }
+    }
+    if (-not $browserSourceTypeCounts.Contains("browser-extension") -or $browserSourceTypeCounts["browser-extension"] -ne 6) {
+        $failures.Add("browser extension smoke did not emit 6 browser-extension source_type records")
+    }
+    if (-not $browserManagerCounts.Contains("chromium-extension") -or $browserManagerCounts["chromium-extension"] -ne 3) {
+        $failures.Add("browser extension smoke did not emit 3 chromium-extension records")
+    }
+    if (-not $browserManagerCounts.Contains("firefox-extension") -or $browserManagerCounts["firefox-extension"] -ne 3) {
+        $failures.Add("browser extension smoke did not emit 3 firefox-extension records")
+    }
+    if ($browserProjectRootCount -ne $browserPackages.Count) {
+        $failures.Add("browser extension smoke did not stamp all packages as project_root")
+    }
+    foreach ($name in $browserExpectedNames) {
+        if (-not $browserExpectedNamesEmitted[$name]) {
+            $failures.Add("browser extension smoke did not emit expected package $name")
+        }
+    }
+}
+
+$strictParityRoots = @()
+if (Test-Path $strictParityRootsOut) {
+    foreach ($line in [System.IO.File]::ReadLines($strictParityRootsOut)) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+        $parts = $line -split "`t", 2
+        if ($parts.Count -ne 2) {
+            $failures.Add("strict-parity roots output contained a non-TSV line")
+            continue
+        }
+        $strictParityRoots += [pscustomobject]@{ Kind = $parts[0]; Path = $parts[1] }
+    }
+}
+
+$strictParityExpectedRoots = [ordered]@{
+    npm_global_modules = (Join-Path $strictParityFixtureHome "AppData\Roaming\npm\node_modules")
+    python_user_site = (Join-Path $strictParityFixtureHome "AppData\Roaming\Python\Python311\site-packages")
+    pipx_home_venvs = (Join-Path $strictParityFixtureHome "pipx\venvs")
+    pipx_localappdata_venvs = (Join-Path $strictParityFixtureHome "AppData\Local\pipx\venvs")
+    pipx_legacy_venvs = (Join-Path $strictParityFixtureHome ".local\pipx\venvs")
+}
+$strictParityRootListed = [ordered]@{}
+foreach ($key in $strictParityExpectedRoots.Keys) {
+    $path = $strictParityExpectedRoots[$key]
+    $strictParityRootListed[$key] = @($strictParityRoots | Where-Object { $_.Path -eq $path -and $_.Kind -eq "user_package_root" }).Count -eq 1
+}
+
+$strictParityRecords = Read-JsonLines $strictParityScanOut
+$strictParityRecordTypeCounts = [ordered]@{}
+$strictParitySourceTypeCounts = [ordered]@{}
+$strictParityPackages = New-Object System.Collections.Generic.List[object]
+$strictParitySummary = $null
+foreach ($record in $strictParityRecords) {
+    $recordType = [string]$record.record_type
+    if ([string]::IsNullOrWhiteSpace($recordType)) {
+        continue
+    }
+    if (-not $strictParityRecordTypeCounts.Contains($recordType)) {
+        $strictParityRecordTypeCounts[$recordType] = 0
+    }
+    $strictParityRecordTypeCounts[$recordType]++
+    if ($recordType -eq "package") {
+        $strictParityPackages.Add($record)
+        $sourceType = [string]$record.source_type
+        if (-not [string]::IsNullOrWhiteSpace($sourceType)) {
+            if (-not $strictParitySourceTypeCounts.Contains($sourceType)) {
+                $strictParitySourceTypeCounts[$sourceType] = 0
+            }
+            $strictParitySourceTypeCounts[$sourceType]++
+        }
+    }
+    if ($recordType -eq "scan_summary") {
+        $strictParitySummary = $record
+    }
+}
+
+$strictParityExpectedNames = @(
+    "smoke-npm-root",
+    "SmokePythonRoot",
+    "SmokePipxRoot",
+    "SmokePipxLocalRoot",
+    "SmokePipxLegacyRoot"
+)
+$strictParityExpectedNamesEmitted = [ordered]@{}
+foreach ($name in $strictParityExpectedNames) {
+    $strictParityExpectedNamesEmitted[$name] = @($strictParityPackages | Where-Object { (Get-JsonProperty $_ "package_name") -eq $name }).Count -eq 1
+}
+
+if ($commands.Contains("roots_strict_parity_fixture") -and $commands["roots_strict_parity_fixture"].exit_code -eq 0) {
+    foreach ($key in $strictParityRootListed.Keys) {
+        if (-not $strictParityRootListed[$key]) {
+            $failures.Add("strict-parity roots did not list expected root $key")
+        }
+    }
+}
+
+if ($commands.Contains("scan_strict_parity_fixture") -and $commands["scan_strict_parity_fixture"].exit_code -eq 0) {
+    if ($strictParityPackages.Count -ne 5) {
+        $failures.Add("strict-parity scan emitted $($strictParityPackages.Count) package records, want 5")
+    }
+    if ($null -eq $strictParitySummary) {
+        $failures.Add("strict-parity scan_summary was missing")
+    } elseif ($strictParitySummary.status -ne "complete") {
+        $failures.Add("strict-parity scan_summary status was not complete")
+    }
+    if (-not $strictParitySourceTypeCounts.Contains("npm-node_modules") -or $strictParitySourceTypeCounts["npm-node_modules"] -ne 1) {
+        $failures.Add("strict-parity scan did not emit 1 npm node_modules package record")
+    }
+    if (-not $strictParitySourceTypeCounts.Contains("pypi-dist-info") -or $strictParitySourceTypeCounts["pypi-dist-info"] -ne 4) {
+        $failures.Add("strict-parity scan did not emit 4 PyPI dist-info records")
+    }
+    foreach ($name in $strictParityExpectedNames) {
+        if (-not $strictParityExpectedNamesEmitted[$name]) {
+            $failures.Add("strict-parity scan did not emit expected package $name")
+        }
+    }
+}
+
 $redacted = [ordered]@{
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
     evidence_dir = $EvidenceRoot
@@ -844,10 +1172,22 @@ $redacted = [ordered]@{
         appdata_claude_listed = [bool]$appDataClaudeListed
         chrome_default_extensions_exists = [bool]$chromeDefaultExtensionsExists
         chrome_default_extensions_listed = [bool]$chromeDefaultExtensionsListed
+        brave_default_extensions_exists = [bool]$braveDefaultExtensionsExists
+        brave_default_extensions_listed = [bool]$braveDefaultExtensionsListed
+        chromium_default_extensions_exists = [bool]$chromiumDefaultExtensionsExists
+        chromium_default_extensions_listed = [bool]$chromiumDefaultExtensionsListed
         edge_default_extensions_exists = [bool]$edgeDefaultExtensionsExists
         edge_default_extensions_listed = [bool]$edgeDefaultExtensionsListed
+        vivaldi_default_extensions_exists = [bool]$vivaldiDefaultExtensionsExists
+        vivaldi_default_extensions_listed = [bool]$vivaldiDefaultExtensionsListed
         firefox_profiles_exists = [bool]$firefoxProfilesExists
         firefox_profiles_listed = [bool]$firefoxProfilesListed
+        librewolf_profiles_exists = [bool]$librewolfProfilesExists
+        librewolf_profiles_listed = [bool]$librewolfProfilesListed
+        waterfox_profiles_exists = [bool]$waterfoxProfilesExists
+        waterfox_profiles_listed = [bool]$waterfoxProfilesListed
+        waterfox_legacy_profiles_exists = [bool]$waterfoxLegacyProfilesExists
+        waterfox_legacy_profiles_listed = [bool]$waterfoxLegacyProfilesListed
         firefox_profile_count = $firefoxProfileCount
         firefox_extensions_json_profile_count = $firefoxExtensionsJsonProfileCount
     }
@@ -911,6 +1251,29 @@ $redacted = [ordered]@{
         expected_pester_emitted = $powershellPesterEmitted
         skipped_missing_version_emitted = $powershellNoVersionEmitted
         skipped_expression_version_emitted = $powershellExpressionVersionEmitted
+    }
+    browser_extension_project_scan = [ordered]@{
+        record_type_counts = $browserRecordTypeCounts
+        source_type_counts = $browserSourceTypeCounts
+        package_manager_counts = $browserManagerCounts
+        package_records = $browserPackages.Count
+        summary_present = $null -ne $browserSummary
+        summary_status = Get-JsonProperty $browserSummary "status"
+        summary_profile = Get-JsonProperty $browserSummary "profile"
+        project_root_count = $browserProjectRootCount
+        missing_required_fields = $browserMissingRequiredFields
+        expected_names_emitted = $browserExpectedNamesEmitted
+    }
+    strict_parity_fixture = [ordered]@{
+        root_count = @($strictParityRoots).Count
+        expected_roots_listed = $strictParityRootListed
+        record_type_counts = $strictParityRecordTypeCounts
+        source_type_counts = $strictParitySourceTypeCounts
+        package_records = $strictParityPackages.Count
+        summary_present = $null -ne $strictParitySummary
+        summary_status = Get-JsonProperty $strictParitySummary "status"
+        summary_profile = Get-JsonProperty $strictParitySummary "profile"
+        expected_names_emitted = $strictParityExpectedNamesEmitted
     }
     failures = @($failures)
 }

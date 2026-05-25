@@ -44,8 +44,15 @@ macOS/Linux. The tested Windows `baseline` population currently includes:
 - `%USERPROFILE%\go` when present.
 - Windows editor-extension roots for VS Code, Cursor, Windsurf, and VSCodium.
 - Windows MCP config roots, including Claude Desktop.
-- Chrome and Edge extension roots under `%LOCALAPPDATA%`.
-- Firefox profile roots under `%APPDATA%`.
+- npm global packages under `%APPDATA%\npm\node_modules`.
+- Python user site-packages under
+  `%APPDATA%\Python\Python*\site-packages`.
+- pipx venv roots under `%USERPROFILE%\pipx\venvs`,
+  `%LOCALAPPDATA%\pipx\venvs`, `%USERPROFILE%\.local\pipx\venvs`, and the
+  shared cross-platform `%USERPROFILE%\.local\share\pipx\venvs` candidate.
+- Chrome, Edge, Brave, Chromium, and Vivaldi extension roots under
+  `%LOCALAPPDATA%`.
+- Firefox, LibreWolf, and Waterfox profile roots under `%APPDATA%`.
 
 Windows `project` and `deep` use the same parsers as other platforms over
 operator-supplied roots. `deep` has no defaults and requires `--root`.
@@ -66,10 +73,14 @@ These are literal compatibility-layer candidates. Redirected Documents,
 OneDrive-known-folder resolution, custom `PSModulePath` registry entries, and
 Gallery/API discovery are not claimed.
 
-Windows default roots do not currently claim user npm/global, Python,
-pipx/virtualenv, Ruby/Bundler, Composer, Brave, Chromium, Vivaldi, LibreWolf,
-Waterfox, WSL, redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX,
-or Visual Studio extensions. NuGet project/deep metadata files are parsed when
+These npm/Python/pipx roots are also literal compatibility-layer candidates.
+Custom npm prefixes, Python install discovery outside the `%APPDATA%` user
+site pattern, arbitrary virtualenv discovery, custom `PIPX_HOME` expansion,
+registry reads, and package-manager command execution are not claimed.
+
+Windows default roots do not currently claim Ruby/Bundler, Composer, WSL,
+redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX, or Visual
+Studio extensions. NuGet project/deep metadata files are parsed when
 they appear under operator-supplied roots, but NuGet global package-cache
 baseline roots are not claimed.
 
@@ -505,11 +516,13 @@ deep walk descends into `~/.config/<browser>/<profile>/` but, again,
 only opens path-shape-matched manifests.
 
 On Windows, the compatibility layer currently adds default browser roots for
-Chrome and Edge `Default` / `Profile 1`..`Profile 9` extension directories
-under `%LOCALAPPDATA%`, plus Firefox profile roots under `%APPDATA%`. Brave,
-Chromium, Vivaldi, LibreWolf, and Waterfox are not claimed as Windows default
-roots yet; pass explicit `--root` values for experiments until those layouts
-are implemented and tested.
+Chrome, Edge, Brave, Chromium, and Vivaldi `Default` / `Profile 1`..`Profile 9`
+extension directories under `%LOCALAPPDATA%`, plus Firefox, LibreWolf, and
+Waterfox profile roots under `%APPDATA%`. Waterfox includes both the
+source-documented `%APPDATA%\Waterfox\Waterfox\Profiles` parent and the
+locally observed `%APPDATA%\Waterfox\Profiles` parent. Chromium support is
+validated against the official Chromium snapshot layout, not a normal signed
+stable installer.
 
 Example jq filters:
 
