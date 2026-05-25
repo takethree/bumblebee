@@ -329,6 +329,19 @@ Smoke receipt from 2026-05-24 Windows HTTP sink validation:
 - The HTTP `scan_summary` had `status=complete`, `profile=project`, `http_batches_attempted=1`, `http_batches_succeeded=1`, `http_last_status=200`, and no raw received NDJSON was written to the repo.
 - The same smoke run also preserved the real-profile baseline proof: 9 roots, 3 browser extension roots, 1,042 package records, 0 findings, 5 duplicates, 4 informational diagnostics, no timeout, and no summary error.
 
+Full smoke receipt from 2026-05-24 Windows compatibility validation:
+
+- CI-parity validation passed with the local Go toolchain: `go vet ./...`, `go test ./...`, `go test -race ./...`, Windows build, and `bumblebee.exe selftest`. Formatting was validated against a clean LF checkout-index export to avoid local CRLF working-tree noise.
+- Race tests used MSYS2 UCRT64 GCC installed under the local `bumblebee-tools` tool directory. The MSYS2 installer was downloaded from the official MSYS2 GitHub release, verified against the official SHA-256 file, and GCC reported the MSYS2 16.1.0 build.
+- Windows release-build smoke produced both `windows/amd64` and `windows/arm64` binaries in temporary evidence storage. Runtime execution was validated on `amd64` only; `arm64` remains build-only smoke coverage on this host.
+- `scripts\windows-smoke.ps1` passed with raw evidence outside the repo: 9 baseline roots, 3 browser extension roots, 1 editor extension root, 5 MCP config roots, no bare `%USERPROFILE%` root, 1,042 baseline package records, 1 complete baseline `scan_summary`, 0 findings, 5 duplicates, 4 diagnostics, no timeout, and no summary error.
+- The same script validated local HTTP output with bearer auth: 2 loopback requests, 0 auth failures, 0 parse failures, 1 package record, 1 complete project `scan_summary`, 1 attempted/succeeded HTTP batch, 0 failed HTTP batches, and HTTP 200 as the last status.
+- Focused explicit-root fixture smokes passed for both `project` and `deep` profiles over a path containing spaces. Each emitted 1 package record and a complete `scan_summary`; `project` stamped `root_kind=project_root`, while `deep` stamped `root_kind=unknown`.
+- Focused endpoint smoke passed with `--device-id-env`: package and `scan_summary` endpoint fields matched, `device_id` was present, `uid` was Windows-SID-shaped rather than `-1`, and `username` was present. Raw identity values were not written to this receipt.
+- Focused controlled-root smoke passed for implemented root families: Go user root, VS Code-family editor extension root, Claude MCP config root, Chrome extension root, Edge extension root, and Firefox profile root. The fixture emitted 5 package records across editor-extension, MCP, and browser-extension ecosystems with a complete baseline `scan_summary`.
+- Focused controlled `--all-users` smoke passed with a temporary users directory: 2 real user homes expanded, service/system profile names filtered, 0 bare home roots emitted, 2 package records emitted, and the baseline `scan_summary` completed.
+- Raw NDJSON, HTTP payloads, SIDs, hostnames, usernames, tokens, and full profile paths stayed outside the repo. This receipt records only redacted aggregate evidence and does not close the remaining Windows gaps below.
+
 Known limitations / current support boundary:
 
 - Tested support: the current Windows compatibility layer builds
