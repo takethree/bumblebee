@@ -8,7 +8,7 @@ goal:
   slug: "windows-full-smoke-validation"
   kind: existing_plan
   tranche: "Smoke test the implemented Windows compatibility layer and record a redacted receipt."
-  status: active
+  status: done
   oracle:
     signal: "Implemented Windows compatibility-layer behavior is smoke-tested end to end, redacted evidence is recorded, and untested gaps remain explicit."
     cadence: "after smoke matrix validation, after smoke execution, and at final audit"
@@ -68,7 +68,7 @@ visual_board:
     command: "npx goalbuddy board docs/goals/windows-full-smoke-validation"
     note: "npx reached Socket Firewall, but board startup failed: [sfw] Failed to prepare firewall binary: Unable to fetch latest release and no valid cached release found. File-backed board is ready."
 
-active_task: T004
+active_task: null
 
 tasks:
   - id: T001
@@ -259,7 +259,7 @@ tasks:
   - id: T004
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: low
     objective: "Commit and push the verified Windows full-smoke receipt."
     allowed_files:
@@ -274,12 +274,29 @@ tasks:
       - "Smoke verification did not pass or is not recorded."
       - "Commit would include files outside windows.md and GoalBuddy control files."
       - "Push to origin/windows/compat-layer fails."
-    receipt: null
+    receipt:
+      result: done
+      summary: "Committed and pushed the verified Windows full-smoke receipt."
+      changed_files:
+        - "windows.md"
+        - "docs/goals/windows-full-smoke-validation/goal.md"
+        - "docs/goals/windows-full-smoke-validation/state.yaml"
+      commands:
+        - command: "git add windows.md docs\\goals\\windows-full-smoke-validation\\goal.md docs\\goals\\windows-full-smoke-validation\\state.yaml"
+          status: pass
+        - command: "git commit -m \"docs: record Windows full smoke validation\""
+          status: pass
+        - command: "git push origin windows/compat-layer"
+          status: pass
+      evidence:
+        - "Commit eb641a4 was created and pushed to origin/windows/compat-layer."
+        - "git show --stat --name-only HEAD listed only windows.md and GoalBuddy control files."
+        - "Branch was clean after push before completion-receipt update."
 
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: done
     reasoning_hint: high
     objective: "Audit whether the Windows full-smoke validation tranche is complete."
     inputs:
@@ -297,11 +314,39 @@ tasks:
       - "full_outcome_complete: true | false"
       - "Evidence mapped to the oracle"
       - "Missing evidence or next task if not complete"
-    receipt: null
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "Final audit passed for the Windows full-smoke validation tranche."
+      checklist:
+        - "Objective deliverable: implemented Windows compatibility-layer behavior was smoke-tested and a redacted receipt was added to windows.md."
+        - "Current checklist mapping: implemented Goal 1/2/5/12 items and completed slices of Goals 3/4/6/7/13 were mapped to CI parity, script smoke, focused fixtures, or preserved non-goals."
+        - "Smoke execution: go vet, go test, go test -race, build, selftest, windows-smoke.ps1, cross-builds, explicit project/deep, endpoint device_id, controlled root-family, and controlled all-users smokes passed."
+        - "Evidence redaction: windows.md records only aggregate counts and pass/fail facts; raw NDJSON, identities, tokens, and full profile paths stayed outside the repo."
+        - "Known gaps: windows.md still leaves username-shape matrix, remaining browser families, redirected folders, WSL, native ecosystems, deployment docs, user-facing docs, and maintenance tasks open."
+        - "Scope audit: README.md, docs/schema, cmd, internal, CI, GoReleaser, deployment docs, and inventory docs were unchanged in the smoke receipt commit."
+        - "Branch state: commit eb641a4 is pushed to origin/windows/compat-layer."
+      commands:
+        - command: "git status --short --branch"
+          status: pass
+        - command: "git log --oneline --decorate -4"
+          status: pass
+        - command: "git show --stat --name-only --oneline --no-renames HEAD"
+          status: pass
+        - command: "git diff --exit-code HEAD^ HEAD -- README.md docs\\schema cmd internal .github .goreleaser.yaml docs\\deployment-macos.md docs\\inventory-sources.md"
+          status: pass
+        - command: "rg -n \"Full smoke receipt|go test -race|MSYS2|windows/arm64|endpoint smoke|all-users smoke|Raw NDJSON|Known gaps\" windows.md"
+          status: pass
 
 checks:
   dirty_fingerprint: clean_at_prep
   last_verification:
-    result: unknown
-    task: null
-    commands: []
+    result: pass
+    task: T999
+    commands:
+      - "git status --short --branch"
+      - "git log --oneline --decorate -4"
+      - "git show --stat --name-only --oneline --no-renames HEAD"
+      - "git diff --exit-code HEAD^ HEAD -- README.md docs\\schema cmd internal .github .goreleaser.yaml docs\\deployment-macos.md docs\\inventory-sources.md"
+      - "rg -n \"Full smoke receipt|go test -race|MSYS2|windows/arm64|endpoint smoke|all-users smoke|Raw NDJSON|Known gaps\" windows.md"
