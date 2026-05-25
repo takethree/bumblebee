@@ -639,11 +639,27 @@ core Windows smoke checks, keeps raw NDJSON outside the repo, and writes only
 
 Known gaps from the smoke run:
 
-- [ ] Run a real-profile baseline on a machine with `%USERPROFILE%\go` present, because the first real smoke did not exercise a real `user_package_root`.
+- [x] Run a real-profile baseline on a machine with `%USERPROFILE%\go` present, because the first real smoke did not exercise a real `user_package_root`.
 - [x] Run a real-profile MCP smoke on a machine with a Windows Claude Desktop config root present.
 - [x] Decide whether operator-facing docs should clarify that `diagnostics_count` includes informational diagnostics, not only warnings or errors.
 - [x] Add a redacted smoke-test receipt pattern for future Windows validation runs so raw NDJSON inventory is never checked in.
 - [x] Keep the remaining browser families open until separately exercised.
+
+Real-profile `%USERPROFILE%\go` smoke receipt from 2026-05-25:
+
+- [x] Updated `scripts\windows-smoke.ps1` to create a run-specific temporary
+  Go module fixture under the actual `%USERPROFILE%\go` baseline root.
+- [x] The smoke now fails if `%USERPROFILE%\go` is not listed by
+  `bumblebee roots --profile baseline`, or if the temporary `go.mod`
+  dependency is not emitted as a `go-mod` package in the baseline scan.
+- [x] Verified on this host with
+  `C:\Users\bbutner\AppData\Local\Temp\bumblebee-windows-smoke\20260525-173528\smoke-summary.redacted.json`:
+  `userprofile_go_smoke_fixture_created=true`,
+  `userprofile_go_exists=true`, `userprofile_go_listed=true`,
+  `userprofile_go_smoke_package_emitted=true`, and `failures=0`.
+- [x] Post-run cleanup left `leftover_go_smoke_project_count=0`; because
+  `%USERPROFILE%\go` did not preexist on this host, the smoke removed the
+  temporary root after validation.
 
 Goal 3A strict-parity receipt:
 

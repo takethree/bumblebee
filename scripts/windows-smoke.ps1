@@ -71,6 +71,14 @@ $knownDocumentsSmokeModuleDir = if ($knownDocumentsSmokeModuleRoot) { Join-Path 
 $knownDocumentsSmokeManifest = if ($knownDocumentsSmokeModuleDir) { Join-Path $knownDocumentsSmokeModuleDir "$knownDocumentsSmokeModuleName.psd1" } else { "" }
 $knownDocumentsSmokePowerShellRootPreexisting = if ($knownDocumentsSmokePowerShellRoot) { Test-Path -LiteralPath $knownDocumentsSmokePowerShellRoot } else { $false }
 $knownDocumentsSmokeModuleRootPreexisting = if ($knownDocumentsSmokeModuleRoot) { Test-Path -LiteralPath $knownDocumentsSmokeModuleRoot } else { $false }
+$userGoRoot = if ($env:USERPROFILE) { Join-Path $env:USERPROFILE "go" } else { "" }
+$userGoSmokeSrcRoot = if ($userGoRoot) { Join-Path $userGoRoot "src" } else { "" }
+$userGoSmokeProjectName = "bumblebee-go-smoke-$stamp"
+$userGoSmokeDependencyName = "example.com/bumblebee/windows-go-smoke-dependency"
+$userGoSmokeProjectDir = if ($userGoSmokeSrcRoot) { Join-Path $userGoSmokeSrcRoot $userGoSmokeProjectName } else { "" }
+$userGoSmokeGoMod = if ($userGoSmokeProjectDir) { Join-Path $userGoSmokeProjectDir "go.mod" } else { "" }
+$userGoRootPreexisting = if ($userGoRoot) { Test-Path -LiteralPath $userGoRoot } else { $false }
+$userGoSmokeSrcRootPreexisting = if ($userGoSmokeSrcRoot) { Test-Path -LiteralPath $userGoSmokeSrcRoot } else { $false }
 
 function ConvertTo-WindowsCommandLineArgument {
     param([AllowNull()][string]$Argument)
@@ -302,6 +310,43 @@ function New-SmokeKnownDocumentsPowerShellFixture {
 "@
     [System.IO.File]::WriteAllText($knownDocumentsSmokeManifest, $body, [System.Text.UTF8Encoding]::new($false))
     return $true
+}
+
+function New-SmokeUserGoFixture {
+    if ([string]::IsNullOrWhiteSpace($userGoSmokeProjectDir)) {
+        return $false
+    }
+    New-Item -ItemType Directory -Force -Path $userGoSmokeProjectDir | Out-Null
+    $body = @"
+module example.com/bumblebee/windows-go-smoke-host
+
+go 1.22
+
+require $userGoSmokeDependencyName v1.2.3
+"@
+    [System.IO.File]::WriteAllText($userGoSmokeGoMod, $body, [System.Text.UTF8Encoding]::new($false))
+    return $true
+}
+
+function Remove-SmokeUserGoFixture {
+    if ([string]::IsNullOrWhiteSpace($userGoSmokeProjectDir)) {
+        return
+    }
+    if (Test-Path -LiteralPath $userGoSmokeProjectDir) {
+        Remove-Item -LiteralPath $userGoSmokeProjectDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (-not $userGoSmokeSrcRootPreexisting -and (Test-Path -LiteralPath $userGoSmokeSrcRoot)) {
+        $remaining = @(Get-ChildItem -LiteralPath $userGoSmokeSrcRoot -Force -ErrorAction SilentlyContinue)
+        if ($remaining.Count -eq 0) {
+            Remove-Item -LiteralPath $userGoSmokeSrcRoot -Force -ErrorAction SilentlyContinue
+        }
+    }
+    if (-not $userGoRootPreexisting -and (Test-Path -LiteralPath $userGoRoot)) {
+        $remaining = @(Get-ChildItem -LiteralPath $userGoRoot -Force -ErrorAction SilentlyContinue)
+        if ($remaining.Count -eq 0) {
+            Remove-Item -LiteralPath $userGoRoot -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function Remove-SmokeKnownDocumentsPowerShellFixture {
@@ -552,12 +597,14 @@ function Wait-ForPath {
 $commands = @{}
 $failures = New-Object System.Collections.Generic.List[string]
 $knownDocumentsSmokeFixtureCreated = $false
+$userGoSmokeFixtureCreated = $false
 trap {
     $originalError = $_
     try {
+        Remove-SmokeUserGoFixture
         Remove-SmokeKnownDocumentsPowerShellFixture
     } catch {
-        [Console]::Error.WriteLine("Failed to clean up known Documents smoke fixture: $($_.Exception.Message)")
+        [Console]::Error.WriteLine("Failed to clean up smoke fixture: $($_.Exception.Message)")
     }
     [Console]::Error.WriteLine($originalError.ToString())
     exit 1
@@ -588,6 +635,10 @@ if ($code -eq 0) {
     $knownDocumentsSmokeFixtureCreated = New-SmokeKnownDocumentsPowerShellFixture
     if ($knownDocumentsSmokeFixtureCreated -and -not (Test-Path -LiteralPath $knownDocumentsSmokeManifest)) {
         $failures.Add("known Documents smoke PowerShell module manifest was not created")
+    }
+    $userGoSmokeFixtureCreated = New-SmokeUserGoFixture
+    if ($userGoSmokeFixtureCreated -and -not (Test-Path -LiteralPath $userGoSmokeGoMod)) {
+        $failures.Add("USERPROFILE go smoke go.mod was not created")
     }
 
     $rootsCode = Invoke-Captured $exePath @("roots", "--profile", "baseline") $rootsOut $rootsErr
@@ -758,7 +809,7 @@ if ($env:USERPROFILE) {
     }).Count
 }
 
-$goRoot = if ($env:USERPROFILE) { Join-Path $env:USERPROFILE "go" } else { "" }
+$goRoot = $userGoRoot
 $knownDocumentsPowerShellModules = if ($knownDocuments) { Join-Path $knownDocuments "PowerShell\Modules" } else { "" }
 $knownDocumentsWindowsPowerShellModules = if ($knownDocuments) { Join-Path $knownDocuments "WindowsPowerShell\Modules" } else { "" }
 $appDataClaude = if ($env:APPDATA) { Join-Path $env:APPDATA "Claude" } else { "" }
@@ -824,6 +875,7 @@ $records = Read-JsonLines $scanOut
 $recordTypeCounts = [ordered]@{}
 $summary = $null
 $knownDocumentsSmokePackageEmitted = $false
+$userGoSmokePackageEmitted = $false
 foreach ($record in $records) {
     $recordType = [string]$record.record_type
     if ([string]::IsNullOrWhiteSpace($recordType)) {
@@ -841,6 +893,11 @@ foreach ($record in $records) {
         (Get-JsonProperty $record "source_type") -eq "powershell-module-manifest") {
         $knownDocumentsSmokePackageEmitted = $true
     }
+    if ($recordType -eq "package" -and
+        (Get-JsonProperty $record "package_name") -eq $userGoSmokeDependencyName -and
+        (Get-JsonProperty $record "source_type") -eq "go-mod") {
+        $userGoSmokePackageEmitted = $true
+    }
 }
 
 if ($commands.Contains("scan_baseline_file") -and $commands["scan_baseline_file"].exit_code -eq 0 -and $null -eq $summary) {
@@ -854,6 +911,12 @@ if ($knownDocumentsSmokeFixtureCreated -and -not $knownDocumentsPowerShellModule
 }
 if ($knownDocumentsSmokeFixtureCreated -and -not $knownDocumentsSmokePackageEmitted) {
     $failures.Add("known Documents smoke PowerShell module package was not emitted")
+}
+if ($userGoSmokeFixtureCreated -and -not $goRootListed) {
+    $failures.Add("USERPROFILE go smoke root was not listed")
+}
+if ($userGoSmokeFixtureCreated -and -not $userGoSmokePackageEmitted) {
+    $failures.Add("USERPROFILE go smoke package was not emitted")
 }
 
 $httpRecords = Read-JsonLines $httpReceivedOut
@@ -1270,8 +1333,10 @@ $redacted = [ordered]@{
         kind_counts = $kindCounts
         browser_root_count = $browserRootCount
         bare_userprofile_root_count = $bareUserProfileRootCount
+        userprofile_go_smoke_fixture_created = [bool]$userGoSmokeFixtureCreated
         userprofile_go_exists = [bool]$goRootExists
         userprofile_go_listed = [bool]$goRootListed
+        userprofile_go_smoke_package_emitted = [bool]$userGoSmokePackageEmitted
         known_documents_differs_from_literal = [bool]$knownDocumentsDiffersFromLiteral
         known_documents_smoke_fixture_created = [bool]$knownDocumentsSmokeFixtureCreated
         known_documents_powershell_modules_exists = [bool]$knownDocumentsPowerShellModulesExists
@@ -1395,6 +1460,7 @@ $redacted = [ordered]@{
 
 $redacted | ConvertTo-Json -Depth 8 | Set-Content -Path $summaryPath -Encoding UTF8
 
+Remove-SmokeUserGoFixture
 Remove-SmokeKnownDocumentsPowerShellFixture
 
 if (-not $KeepBinary -and (Test-Path $exePath)) {
