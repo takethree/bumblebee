@@ -184,7 +184,8 @@ profiles, and unreadable paths should surface through normal scanner diagnostics
 - [x] Add Windows-specific excludes for high-cost or sensitive paths.
 - [x] Exclude Windows browser profile data that is not needed for extension inventory.
 - [x] Exclude credential and cloud-sync sensitive directories.
-- [ ] Account for OneDrive and redirected known folders.
+- [x] Account for the current user's redirected `Documents` known-folder path for PowerShell module roots.
+- [ ] Account for broader OneDrive and all-users redirected known folders.
 - [x] Ensure ACL-denied paths produce diagnostics without failing healthy scans.
 - [x] Add tests for inaccessible paths where Windows permits stable test setup.
 
@@ -205,8 +206,9 @@ Receipt from 2026-05-24 Windows walker safety hardening:
 - Added a Windows `icacls`-backed ACL-denial scanner test proving a healthy
   project scan still emits package records and reports the denied directory as
   a structured `debug` diagnostic.
-- Broader redirected-known-folder policy remains unchecked; this tranche proves
-  traversal safety and ACL diagnostics only.
+- Current-user redirected `Documents` support is implemented only for curated
+  PowerShell module roots. Broader OneDrive crawling and all-users redirected
+  known-folder discovery remain unchecked.
 
 ## Goal 7: Normalize Windows Endpoint Identity
 
@@ -391,13 +393,15 @@ PowerShell module manifest design from 2026-05-25:
 - Parsing must remain text/file based. Do not execute PowerShell, import
   modules, run `Test-ModuleManifest`, call PowerShellGet/PSResourceGet, query
   PowerShell Gallery, read the registry, or evaluate PowerShell expressions.
-- Windows baseline roots may include literal current-user and all-users module
-  roots when present:
+- Windows baseline roots may include current-user and all-users module roots
+  when present:
   `%USERPROFILE%\Documents\PowerShell\Modules`,
   `%USERPROFILE%\Documents\WindowsPowerShell\Modules`,
+  the current user's resolved Windows `Documents` known-folder path with
+  `PowerShell\Modules` and `WindowsPowerShell\Modules`,
   `%ProgramFiles%\PowerShell\Modules`, and
   `%ProgramFiles%\WindowsPowerShell\Modules`.
-- Redirected Documents, OneDrive known-folder resolution, custom
+- All-users redirected Documents, broader OneDrive discovery, custom
   `PSModulePath` registry entries, Gallery/API discovery, and command-based
   installed-module inventory remain out of scope for this compatibility-layer
   slice.
@@ -412,11 +416,12 @@ PowerShell module manifest implementation receipt from 2026-05-25:
   the manifest filename, emits `package_manager=powershell` and
   `source_type=powershell-module-manifest`, skips manifests without a usable
   version, and does not evaluate PowerShell expressions.
-- Added literal Windows current-user and all-users PowerShell module roots for
-  baseline scans when those directories exist, while keeping redirected
-  Documents, OneDrive known-folder resolution, custom `PSModulePath`, registry
+- Added Windows current-user and all-users PowerShell module roots for
+  baseline scans when those directories exist. Current-user roots include the
+  resolved Windows `Documents` known-folder path; all-users redirected
+  Documents, broader OneDrive discovery, custom `PSModulePath`, registry
   lookup, Gallery/API discovery, and command-based installed-module inventory
-  out of scope.
+  remain out of scope.
 - Added parser tests, scanner integration coverage, Windows root tests,
   model-derived CLI help coverage, and Windows smoke validation for a
   PowerShell module fixture.
@@ -425,6 +430,36 @@ PowerShell module manifest implementation receipt from 2026-05-25:
   `git diff --check`. The smoke emitted one `powershell-module` package from a
   Pester fixture, produced a complete project `scan_summary`, and skipped
   missing-version and expression-version manifests.
+
+Goal 6A smoke gap-fill receipt from 2026-05-25:
+
+- [x] Updated `scripts\windows-smoke.ps1` to create a run-specific temporary
+  PowerShell module under the actual current user's Windows `Documents`
+  known-folder path.
+- [x] The smoke now fails if the real known-folder `PowerShell\Modules` root is
+  not listed by `bumblebee roots`, or if the temporary module is not emitted as
+  a `powershell-module-manifest` package in the baseline scan.
+- [x] The smoke removes the temporary module after the run and uses a trap to
+  clean up on terminating errors.
+- [x] Added `-RequireRedirectedDocuments` to make redirected-Documents
+  validation an explicit manual/lab gate. When the flag is set, the smoke fails
+  before build/scan unless Windows reports that the current user's `Documents`
+  known-folder path differs from `%USERPROFILE%\Documents`.
+- [x] Verified on this host with
+  `C:\Users\bbutner\AppData\Local\Temp\bumblebee-windows-smoke\20260525-172746\smoke-summary.redacted.json`
+  plus a post-run cleanup check:
+  `known_documents_smoke_fixture_created=true`,
+  `known_documents_powershell_modules_exists=true`,
+  `known_documents_powershell_modules_listed=true`,
+  `known_documents_smoke_package_emitted=true`, and
+  `leftover_smoke_module_count=0`.
+- [x] Verified `-RequireRedirectedDocuments` fails clearly on this
+  non-redirected host instead of silently passing an inapplicable validation.
+- [ ] A real redirected-Documents host is still needed to prove an actual
+  production redirection policy end to end by running
+  `powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1 -RequireRedirectedDocuments`;
+  this machine's known `Documents` path still resolves to
+  `C:\Users\bbutner\Documents`.
 
 ## Goal 11: Define WSL Behavior
 
@@ -491,14 +526,18 @@ Smoke receipt from 2026-05-24 Windows walker privacy hardening:
 - Added path-scoped scanner skips for sensitive browser profile files such as browser cookies, login data, history, Firefox SQLite profile databases, and sessionstore files before they count as considered files.
 - Regression tests prove Windows sensitive directories are pruned while normal project metadata and Firefox `extensions.json` remain scannable; curated Chrome/Edge `Extensions` roots are not pruned when used as scan roots.
 - `scan --profile baseline --output file` completed successfully with 19,438 files considered, 1,042 package records, 0 findings, 5 duplicates, 4 informational diagnostics, no timeout, and no summary error.
-- OneDrive basename and `OneDrive - <tenant>` folder pruning is implemented, but the broader redirected-known-folder policy remains unchecked.
+- OneDrive basename and `OneDrive - <tenant>` folder pruning is implemented.
+  Current-user redirected `Documents` support is limited to curated PowerShell
+  module roots; broader redirected-known-folder policy remains unchecked.
 
 Maintenance receipt from 2026-05-24 Windows privacy platform-hook refactor:
 
 - Moved Windows-only privacy policy out of shared walker/scanner bodies and behind `*_windows.go` / `*_nonwindows.go` compatibility hooks.
 - Kept exported `walk.DefaultExcludes` as a variable to avoid API churn.
 - Preserved the Goal 6A behavior: real Windows smoke still resolved 9 roots, kept 3 browser extension roots, listed Chrome/Edge/Firefox roots, and completed with 19,438 files considered, 1,042 package records, 0 findings, 5 duplicates, 4 informational diagnostics, no timeout, and no summary error.
-- No new Goal 6 capability item is claimed by this refactor; junction/reparse, `dirKey`, broader redirected known folders, and ACL-denied-path work remain unchecked.
+- No new Goal 6 capability item was claimed by this refactor; junction/reparse,
+  `dirKey`, current-user redirected `Documents`, broader redirected known
+  folders, and ACL-denied-path work remained tracked separately.
 
 Smoke receipt from 2026-05-24 Windows HTTP sink validation:
 
@@ -558,12 +597,14 @@ Known limitations / current support boundary:
 - Multi-user boundary: Windows `--all-users` uses local profile-directory
   enumeration only, matching the compatibility-layer approach. Registry, SID,
   domain, Azure AD, OneDrive, and redirected-profile discovery are not claimed;
-  elevated deployment may still be needed operationally to read other users'
-  profiles.
+  current-user `Documents` known-folder resolution is not applied to other
+  profiles. Elevated deployment may still be needed operationally to read other
+  users' profiles.
 - Walker/privacy boundary: Windows sensitive-path excludes, directory
-  reparse-point skipping, junction loop safety, and ACL-denied diagnostics are
-  implemented. Broader OneDrive/redirected-known-folder behavior remains open
-  Goal 6 work.
+  reparse-point skipping, junction loop safety, ACL-denied diagnostics, and
+  current-user redirected `Documents` handling for curated PowerShell module
+  roots are implemented. Broader OneDrive/redirected-known-folder behavior
+  remains open Goal 6 work.
 - Endpoint identity boundary: Windows `endpoint.uid` is documented as the
   scanner-process SID, and `endpoint.device_id` remains the preferred stable
   machine identity supplied through `--device-id-env`. Broader
@@ -575,8 +616,8 @@ Known limitations / current support boundary:
   permission, cadence, and verification guidance.
 - User-facing docs boundary: README and inventory-source docs now describe the
   Windows compatibility layer, but they intentionally keep unimplemented roots,
-  native ecosystems, WSL, redirected known folders, and untested browser
-  families outside the support claim.
+  native ecosystems, WSL, all-users redirected known folders, and broad
+  OneDrive discovery outside the support claim.
 - Native ecosystem boundary: Goal 10 now decides the Windows-native ecosystem
   scope. NuGet project/deep metadata and PowerShell `.psd1` module manifest
   inventory are the implemented Windows-native slices. NuGet global cache

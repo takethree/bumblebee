@@ -11,9 +11,18 @@ import (
 	"github.com/perplexityai/bumblebee/internal/model"
 )
 
+func setTestCurrentUserDocumentsDir(t *testing.T, dir string) {
+	t.Helper()
+	old := currentUserDocumentsDir
+	currentUserDocumentsDir = func() string { return dir }
+	t.Cleanup(func() { currentUserDocumentsDir = old })
+}
+
 func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 	home := t.TempDir()
 	setTestHome(t, home)
+	redirectedDocuments := filepath.Join(t.TempDir(), "OneDrive - Contoso", "Documents")
+	setTestCurrentUserDocumentsDir(t, redirectedDocuments)
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
 	programFiles := filepath.Join(t.TempDir(), "Program Files")
@@ -23,6 +32,8 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
 	psUserModules := filepath.Join(home, "Documents", "PowerShell", "Modules")
 	winPsUserModules := filepath.Join(home, "Documents", "WindowsPowerShell", "Modules")
+	redirectedPsUserModules := filepath.Join(redirectedDocuments, "PowerShell", "Modules")
+	redirectedWinPsUserModules := filepath.Join(redirectedDocuments, "WindowsPowerShell", "Modules")
 	psAllUsersModules := filepath.Join(programFiles, "PowerShell", "Modules")
 	winPsAllUsersModules := filepath.Join(programFiles, "WindowsPowerShell", "Modules")
 	npmGlobalModules := filepath.Join(appData, "npm", "node_modules")
@@ -56,6 +67,8 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 		filepath.Join(home, ".vscodium", "extensions"):        model.RootKindEditorExtension,
 		psUserModules:                    model.RootKindUserPackage,
 		winPsUserModules:                 model.RootKindUserPackage,
+		redirectedPsUserModules:          model.RootKindUserPackage,
+		redirectedWinPsUserModules:       model.RootKindUserPackage,
 		psAllUsersModules:                model.RootKindGlobalPackage,
 		winPsAllUsersModules:             model.RootKindGlobalPackage,
 		npmGlobalModules:                 model.RootKindUserPackage,
@@ -109,6 +122,8 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 	home := t.TempDir()
 	setTestHome(t, home)
+	redirectedDocuments := filepath.Join(t.TempDir(), "OneDrive - Contoso", "Documents")
+	setTestCurrentUserDocumentsDir(t, redirectedDocuments)
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
 	programFiles := filepath.Join(t.TempDir(), "Program Files")
@@ -131,6 +146,8 @@ func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 		filepath.Join(home, ".vscodium", "extensions"),
 		filepath.Join(home, "Documents", "PowerShell", "Modules"),
 		filepath.Join(home, "Documents", "WindowsPowerShell", "Modules"),
+		filepath.Join(redirectedDocuments, "PowerShell", "Modules"),
+		filepath.Join(redirectedDocuments, "WindowsPowerShell", "Modules"),
 		filepath.Join(programFiles, "PowerShell", "Modules"),
 		filepath.Join(programFiles, "WindowsPowerShell", "Modules"),
 		filepath.Join(appData, "npm", "node_modules"),
@@ -161,6 +178,30 @@ func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 		if gotPaths[p] {
 			t.Errorf("baseline emitted absent Windows candidate %q (roots=%v)", p, roots)
 		}
+	}
+}
+
+func TestResolveRootsBaselineDeduplicatesKnownDocumentsWindows(t *testing.T) {
+	home := t.TempDir()
+	setTestHome(t, home)
+	setTestCurrentUserDocumentsDir(t, filepath.Join(home, "Documents"))
+	psUserModules := filepath.Join(home, "Documents", "PowerShell", "Modules")
+	if err := os.MkdirAll(psUserModules, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	roots, _, err := resolveRoots(model.ProfileBaseline, nil, rootsOpts{})
+	if err != nil {
+		t.Fatalf("resolveRoots baseline: %v", err)
+	}
+	count := 0
+	for _, r := range roots {
+		if r.Path == psUserModules {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("PowerShell module root count = %d, want 1 (roots=%v)", count, roots)
 	}
 }
 
@@ -321,6 +362,8 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 		[]string{"Public", "Default", "Default User", "All Users", "desktop.ini"})
 	t.Setenv("BUMBLEBEE_USERS_DIR", usersDir)
 	setTestHome(t, realHomes[0])
+	redirectedDocuments := filepath.Join(t.TempDir(), "OneDrive - Contoso", "Documents")
+	setTestCurrentUserDocumentsDir(t, redirectedDocuments)
 	t.Setenv("APPDATA", filepath.Join(realHomes[0], "AppData", "Roaming"))
 	t.Setenv("LOCALAPPDATA", filepath.Join(realHomes[0], "AppData", "Local"))
 
@@ -357,6 +400,10 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 			mustMkdir(p)
 		}
 	}
+	redirectedPsUserModules := filepath.Join(redirectedDocuments, "PowerShell", "Modules")
+	redirectedWinPsUserModules := filepath.Join(redirectedDocuments, "WindowsPowerShell", "Modules")
+	mustMkdir(redirectedPsUserModules)
+	mustMkdir(redirectedWinPsUserModules)
 
 	roots, notes, err := resolveRoots(model.ProfileBaseline, nil, rootsOpts{AllUsers: true})
 	if err != nil {
@@ -391,6 +438,10 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 			filepath.Join(roaming, "Waterfox", "Waterfox", "Profiles"):                                   model.RootKindBrowserExtension,
 			filepath.Join(roaming, "Waterfox", "Profiles"):                                               model.RootKindBrowserExtension,
 		}
+		if samePath(h, realHomes[0]) {
+			want[redirectedPsUserModules] = model.RootKindUserPackage
+			want[redirectedWinPsUserModules] = model.RootKindUserPackage
+		}
 		for p, kind := range want {
 			if gotPaths[p] != kind {
 				t.Errorf("root %q kind = %q, want %q (roots=%v)", p, gotPaths[p], kind, roots)
@@ -399,6 +450,18 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 		if _, ok := gotPaths[h]; ok {
 			t.Errorf("bare home %q was added as a root", h)
 		}
+	}
+	if gotPaths[redirectedPsUserModules] != model.RootKindUserPackage {
+		t.Errorf("current user's redirected PowerShell module root missing (roots=%v)", roots)
+	}
+	redirectedPsCount := 0
+	for _, r := range roots {
+		if r.Path == redirectedPsUserModules {
+			redirectedPsCount++
+		}
+	}
+	if redirectedPsCount != 1 {
+		t.Errorf("redirected PowerShell module root count = %d, want 1 for current user only (roots=%v)", redirectedPsCount, roots)
 	}
 	for _, name := range []string{"Public", "Default", "Default User", "All Users"} {
 		bad := filepath.Join(usersDir, name)
@@ -457,6 +520,8 @@ func TestResolveRootsProjectAllUsersExpansionWindows(t *testing.T) {
 func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 	home := t.TempDir()
 	setTestHome(t, home)
+	redirectedDocuments := filepath.Join(t.TempDir(), "OneDrive - Contoso", "Documents")
+	setTestCurrentUserDocumentsDir(t, redirectedDocuments)
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
 	programFiles := filepath.Join(t.TempDir(), "Program Files")
@@ -465,6 +530,7 @@ func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 	t.Setenv("ProgramFiles", programFiles)
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
 	psUserModules := filepath.Join(home, "Documents", "PowerShell", "Modules")
+	redirectedPsUserModules := filepath.Join(redirectedDocuments, "PowerShell", "Modules")
 	psAllUsersModules := filepath.Join(programFiles, "PowerShell", "Modules")
 	npmGlobalModules := filepath.Join(appData, "npm", "node_modules")
 	pythonUserSite := filepath.Join(appData, "Python", "Python311", "site-packages")
@@ -483,6 +549,7 @@ func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 	want := map[string]string{
 		filepath.Join(home, "go"):        model.RootKindUserPackage,
 		psUserModules:                    model.RootKindUserPackage,
+		redirectedPsUserModules:          model.RootKindUserPackage,
 		psAllUsersModules:                model.RootKindGlobalPackage,
 		npmGlobalModules:                 model.RootKindUserPackage,
 		pythonUserSite:                   model.RootKindUserPackage,

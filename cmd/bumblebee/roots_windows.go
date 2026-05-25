@@ -6,9 +6,33 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"unicode/utf16"
+	"unsafe"
 
 	"github.com/perplexityai/bumblebee/internal/model"
 	"github.com/perplexityai/bumblebee/internal/scanner"
+)
+
+type knownFolderID struct {
+	Data1 uint32
+	Data2 uint16
+	Data3 uint16
+	Data4 [8]byte
+}
+
+var (
+	folderIDDocuments = knownFolderID{
+		Data1: 0xFDD39AD0,
+		Data2: 0x238F,
+		Data3: 0x46AF,
+		Data4: [8]byte{0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7},
+	}
+	shell32                  = syscall.NewLazyDLL("shell32.dll")
+	procSHGetKnownFolderPath = shell32.NewProc("SHGetKnownFolderPath")
+	ole32                    = syscall.NewLazyDLL("ole32.dll")
+	procCoTaskMemFree        = ole32.NewProc("CoTaskMemFree")
+	currentUserDocumentsDir  = windowsCurrentUserDocumentsDir
 )
 
 func userHomeDir() string {
@@ -119,13 +143,65 @@ func platformLocalAppDataDir(home string) string {
 	return filepath.Join(home, "AppData", "Local")
 }
 
+func windowsCurrentUserDocumentsDir() string {
+	var pathPtr *uint16
+	ret, _, _ := procSHGetKnownFolderPath.Call(
+		uintptr(unsafe.Pointer(&folderIDDocuments)),
+		0,
+		0,
+		uintptr(unsafe.Pointer(&pathPtr)),
+	)
+	if pathPtr != nil {
+		defer procCoTaskMemFree.Call(uintptr(unsafe.Pointer(pathPtr)))
+	}
+	if ret != 0 || pathPtr == nil {
+		return ""
+	}
+	return strings.TrimSpace(utf16PtrToString(pathPtr))
+}
+
+func utf16PtrToString(p *uint16) string {
+	if p == nil {
+		return ""
+	}
+	var s []uint16
+	for *p != 0 {
+		s = append(s, *p)
+		p = (*uint16)(unsafe.Add(unsafe.Pointer(p), unsafe.Sizeof(*p)))
+	}
+	return string(utf16.Decode(s))
+}
+
+func platformDocumentsDirs(home string) []string {
+	var dirs []string
+	add := func(p string) {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			return
+		}
+		p = filepath.Clean(p)
+		for _, existing := range dirs {
+			if samePath(existing, p) {
+				return
+			}
+		}
+		dirs = append(dirs, p)
+	}
+	add(filepath.Join(home, "Documents"))
+	if current := userHomeDir(); current != "" && samePath(home, current) {
+		add(currentUserDocumentsDir())
+	}
+	return dirs
+}
+
 func platformBaselineHomeCandidates(home string) []scanner.Root {
 	var roots []scanner.Root
-	documents := filepath.Join(home, "Documents")
-	roots = append(roots,
-		scanner.Root{Path: filepath.Join(documents, "PowerShell", "Modules"), Kind: model.RootKindUserPackage},
-		scanner.Root{Path: filepath.Join(documents, "WindowsPowerShell", "Modules"), Kind: model.RootKindUserPackage},
-	)
+	for _, documents := range platformDocumentsDirs(home) {
+		roots = append(roots,
+			scanner.Root{Path: filepath.Join(documents, "PowerShell", "Modules"), Kind: model.RootKindUserPackage},
+			scanner.Root{Path: filepath.Join(documents, "WindowsPowerShell", "Modules"), Kind: model.RootKindUserPackage},
+		)
+	}
 	appData := platformRoamingAppDataDir(home)
 	if appData != "" {
 		roots = append(roots,

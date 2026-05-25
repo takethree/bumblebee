@@ -207,7 +207,8 @@ coverage includes:
 - Chrome, Edge, Brave, Chromium, Vivaldi, Firefox, LibreWolf, and Waterfox
   extension roots when present.
 - PowerShell module manifests under current-user and all-users PowerShell
-  module roots when present.
+  module roots when present, including the current user's resolved Windows
+  `Documents` known-folder path.
 - File output, HTTP(S) output, and trailing `scan_summary.status=complete` for
   healthy runs.
 
@@ -220,7 +221,7 @@ Not currently claimed on Windows:
   Studio extensions.
 - WSL package state. Run the Linux Bumblebee binary inside each distro until
   WSL behavior is explicitly defined.
-- Redirected known folders and broader OneDrive profile discovery.
+- All-users redirected known folders and broader OneDrive profile discovery.
 
 ### Windows troubleshooting
 
@@ -236,7 +237,9 @@ Not currently claimed on Windows:
   continues when possible.
 - `--all-users` expands local profile directories only. It does not query the
   registry, enumerate SIDs, discover domain or Azure AD accounts, inspect
-  OneDrive redirected known folders, or work with `--profile deep`.
+  OneDrive redirected known folders, or work with `--profile deep`. Current-user
+  baseline scans do resolve the user's Windows `Documents` known-folder path for
+  curated PowerShell module roots.
 - Keep raw NDJSON, hostnames, usernames, SIDs, tokens, and full profile paths
   out of committed receipts.
 

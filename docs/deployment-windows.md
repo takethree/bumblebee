@@ -44,6 +44,12 @@ registry, enumerate SIDs, discover domain or Azure AD accounts, inspect OneDrive
 redirected known folders, or crawl bare user homes. It cannot be combined with
 explicit `--root` entries or `--profile deep`.
 
+Current-user baseline scans resolve the Windows `Documents` known-folder path
+for PowerShell module roots, so a user's redirected or OneDrive-moved Documents
+folder can still contribute `PowerShell\Modules` and
+`WindowsPowerShell\Modules` roots when those directories exist. This does not
+extend to `--all-users` redirected known-folder discovery.
+
 The walker is read-only. ACL-denied or unavailable paths are reported as
 diagnostics and do not by themselves mean the scan failed. `diagnostics_count`
 in `scan_summary` counts all emitted diagnostics, including informational
@@ -311,6 +317,11 @@ On a representative host:
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1
    ```
+
+   On a lab or enterprise profile where Windows actually redirects the current
+   user's `Documents` known folder, add `-RequireRedirectedDocuments`. That
+   mode fails early on non-redirected profiles and is the validation gate for
+   proving redirected-Documents policy end to end.
 
 Keep raw NDJSON, HTTP payloads, tokens, SIDs, hostnames, usernames, and full
 profile paths out of commits. Record only redacted aggregate receipts in

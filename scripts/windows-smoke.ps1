@@ -1,7 +1,8 @@
 param(
     [string]$EvidenceRoot = "",
     [int]$MaxDurationSeconds = 120,
-    [switch]$KeepBinary
+    [switch]$KeepBinary,
+    [switch]$RequireRedirectedDocuments
 )
 
 Set-StrictMode -Version 3.0
@@ -47,6 +48,29 @@ $strictParityRootsOut = Join-Path $EvidenceRoot "strict-parity-roots.tsv"
 $strictParityRootsErr = Join-Path $EvidenceRoot "strict-parity-roots.stderr.txt"
 $strictParityScanOut = Join-Path $EvidenceRoot "strict-parity-scan.ndjson"
 $strictParityScanErr = Join-Path $EvidenceRoot "strict-parity-scan.stderr.txt"
+$knownDocuments = [Environment]::GetFolderPath("MyDocuments")
+$literalDocuments = if ($env:USERPROFILE) { Join-Path $env:USERPROFILE "Documents" } else { "" }
+$knownDocumentsDiffersFromLiteral = $false
+if (-not [string]::IsNullOrWhiteSpace($knownDocuments) -and -not [string]::IsNullOrWhiteSpace($literalDocuments)) {
+    $knownDocumentsDiffersFromLiteral = -not [string]::Equals(
+        [System.IO.Path]::GetFullPath($knownDocuments).TrimEnd('\'),
+        [System.IO.Path]::GetFullPath($literalDocuments).TrimEnd('\'),
+        [System.StringComparison]::OrdinalIgnoreCase
+    )
+}
+$redirectedDocumentsRequirementError = if ($RequireRedirectedDocuments -and -not $knownDocumentsDiffersFromLiteral) {
+    "-RequireRedirectedDocuments was set, but Windows reports Documents at the standard USERPROFILE\Documents location for this profile. Run this smoke on a profile where Windows itself reports a redirected Documents known-folder path."
+} else {
+    ""
+}
+$knownDocumentsSmokeModuleName = "BumblebeeKnownDocumentsSmoke-$stamp"
+$knownDocumentsSmokeModuleVersion = "1.0.0"
+$knownDocumentsSmokePowerShellRoot = if ($knownDocuments) { Join-Path $knownDocuments "PowerShell" } else { "" }
+$knownDocumentsSmokeModuleRoot = if ($knownDocumentsSmokePowerShellRoot) { Join-Path $knownDocumentsSmokePowerShellRoot "Modules" } else { "" }
+$knownDocumentsSmokeModuleDir = if ($knownDocumentsSmokeModuleRoot) { Join-Path $knownDocumentsSmokeModuleRoot "$knownDocumentsSmokeModuleName\$knownDocumentsSmokeModuleVersion" } else { "" }
+$knownDocumentsSmokeManifest = if ($knownDocumentsSmokeModuleDir) { Join-Path $knownDocumentsSmokeModuleDir "$knownDocumentsSmokeModuleName.psd1" } else { "" }
+$knownDocumentsSmokePowerShellRootPreexisting = if ($knownDocumentsSmokePowerShellRoot) { Test-Path -LiteralPath $knownDocumentsSmokePowerShellRoot } else { $false }
+$knownDocumentsSmokeModuleRootPreexisting = if ($knownDocumentsSmokeModuleRoot) { Test-Path -LiteralPath $knownDocumentsSmokeModuleRoot } else { $false }
 
 function ConvertTo-WindowsCommandLineArgument {
     param([AllowNull()][string]$Argument)
@@ -261,6 +285,46 @@ function New-SmokePowerShellFixture {
     $expressionRoot = Join-Path $Root "ExpressionVersion"
     New-Item -ItemType Directory -Force -Path $expressionRoot | Out-Null
     [System.IO.File]::WriteAllText((Join-Path $expressionRoot "ExpressionVersion.psd1"), "@{ ModuleVersion = (Get-Date) }", [System.Text.UTF8Encoding]::new($false))
+}
+
+function New-SmokeKnownDocumentsPowerShellFixture {
+    if ([string]::IsNullOrWhiteSpace($knownDocumentsSmokeModuleDir)) {
+        return $false
+    }
+    New-Item -ItemType Directory -Force -Path $knownDocumentsSmokeModuleDir | Out-Null
+    $body = @"
+@{
+  RootModule = '$knownDocumentsSmokeModuleName.psm1'
+  ModuleVersion = '$knownDocumentsSmokeModuleVersion'
+  GUID = '37fd5801-3f5c-4b6e-a9a0-1d2ab1c4ef33'
+  Author = 'Bumblebee Smoke'
+}
+"@
+    [System.IO.File]::WriteAllText($knownDocumentsSmokeManifest, $body, [System.Text.UTF8Encoding]::new($false))
+    return $true
+}
+
+function Remove-SmokeKnownDocumentsPowerShellFixture {
+    if ([string]::IsNullOrWhiteSpace($knownDocumentsSmokeModuleDir)) {
+        return
+    }
+    $moduleRoot = $knownDocumentsSmokeModuleRoot
+    $moduleNameRoot = Split-Path -Parent $knownDocumentsSmokeModuleDir
+    if (Test-Path -LiteralPath $moduleNameRoot) {
+        Remove-Item -LiteralPath $moduleNameRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (-not $knownDocumentsSmokeModuleRootPreexisting -and (Test-Path -LiteralPath $moduleRoot)) {
+        $remaining = @(Get-ChildItem -LiteralPath $moduleRoot -Force -ErrorAction SilentlyContinue)
+        if ($remaining.Count -eq 0) {
+            Remove-Item -LiteralPath $moduleRoot -Force -ErrorAction SilentlyContinue
+        }
+    }
+    if (-not $knownDocumentsSmokePowerShellRootPreexisting -and (Test-Path -LiteralPath $knownDocumentsSmokePowerShellRoot)) {
+        $remaining = @(Get-ChildItem -LiteralPath $knownDocumentsSmokePowerShellRoot -Force -ErrorAction SilentlyContinue)
+        if ($remaining.Count -eq 0) {
+            Remove-Item -LiteralPath $knownDocumentsSmokePowerShellRoot -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function New-SmokeBrowserFixture {
@@ -487,6 +551,20 @@ function Wait-ForPath {
 
 $commands = @{}
 $failures = New-Object System.Collections.Generic.List[string]
+$knownDocumentsSmokeFixtureCreated = $false
+trap {
+    $originalError = $_
+    try {
+        Remove-SmokeKnownDocumentsPowerShellFixture
+    } catch {
+        [Console]::Error.WriteLine("Failed to clean up known Documents smoke fixture: $($_.Exception.Message)")
+    }
+    [Console]::Error.WriteLine($originalError.ToString())
+    exit 1
+}
+if (-not [string]::IsNullOrWhiteSpace($redirectedDocumentsRequirementError)) {
+    throw $redirectedDocumentsRequirementError
+}
 
 $goTestOut = Join-Path $EvidenceRoot "go-test.stdout.txt"
 $goTestErr = Join-Path $EvidenceRoot "go-test.stderr.txt"
@@ -506,6 +584,11 @@ if ($code -eq 0) {
     $selftestCode = Invoke-Captured $exePath @("selftest") $selftestOut $selftestErr
     Add-CommandResult $commands "selftest" $selftestCode
     if ($selftestCode -ne 0) { $failures.Add("selftest failed") }
+
+    $knownDocumentsSmokeFixtureCreated = New-SmokeKnownDocumentsPowerShellFixture
+    if ($knownDocumentsSmokeFixtureCreated -and -not (Test-Path -LiteralPath $knownDocumentsSmokeManifest)) {
+        $failures.Add("known Documents smoke PowerShell module manifest was not created")
+    }
 
     $rootsCode = Invoke-Captured $exePath @("roots", "--profile", "baseline") $rootsOut $rootsErr
     Add-CommandResult $commands "roots_baseline" $rootsCode
@@ -676,6 +759,8 @@ if ($env:USERPROFILE) {
 }
 
 $goRoot = if ($env:USERPROFILE) { Join-Path $env:USERPROFILE "go" } else { "" }
+$knownDocumentsPowerShellModules = if ($knownDocuments) { Join-Path $knownDocuments "PowerShell\Modules" } else { "" }
+$knownDocumentsWindowsPowerShellModules = if ($knownDocuments) { Join-Path $knownDocuments "WindowsPowerShell\Modules" } else { "" }
 $appDataClaude = if ($env:APPDATA) { Join-Path $env:APPDATA "Claude" } else { "" }
 $msixClaude = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude" } else { "" }
 $chromeDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data\Default\Extensions" } else { "" }
@@ -689,6 +774,10 @@ $waterfoxProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "Waterfox\Waterfo
 $waterfoxLegacyProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "Waterfox\Profiles" } else { "" }
 $goRootExists = if ($goRoot) { Test-Path $goRoot } else { $false }
 $goRootListed = if ($goRoot) { @($roots | Where-Object { $_.Path -eq $goRoot }).Count -gt 0 } else { $false }
+$knownDocumentsPowerShellModulesExists = if ($knownDocumentsPowerShellModules) { Test-Path $knownDocumentsPowerShellModules } else { $false }
+$knownDocumentsPowerShellModulesListed = if ($knownDocumentsPowerShellModules) { @($roots | Where-Object { $_.Path -eq $knownDocumentsPowerShellModules }).Count -gt 0 } else { $false }
+$knownDocumentsWindowsPowerShellModulesExists = if ($knownDocumentsWindowsPowerShellModules) { Test-Path $knownDocumentsWindowsPowerShellModules } else { $false }
+$knownDocumentsWindowsPowerShellModulesListed = if ($knownDocumentsWindowsPowerShellModules) { @($roots | Where-Object { $_.Path -eq $knownDocumentsWindowsPowerShellModules }).Count -gt 0 } else { $false }
 $appDataClaudeExists = if ($appDataClaude) { Test-Path $appDataClaude } else { $false }
 $appDataClaudeListed = if ($appDataClaude) { @($roots | Where-Object { $_.Path -eq $appDataClaude }).Count -gt 0 } else { $false }
 $msixClaudeExists = if ($msixClaude) { Test-Path $msixClaude } else { $false }
@@ -724,10 +813,17 @@ if ($firefoxProfilesExists) {
 if ($bareUserProfileRootCount -gt 0) {
     $failures.Add("bare USERPROFILE appeared as a baseline root")
 }
+if ($knownDocumentsPowerShellModulesExists -and -not $knownDocumentsPowerShellModulesListed) {
+    $failures.Add("known Documents PowerShell module root exists but was not listed")
+}
+if ($knownDocumentsWindowsPowerShellModulesExists -and -not $knownDocumentsWindowsPowerShellModulesListed) {
+    $failures.Add("known Documents WindowsPowerShell module root exists but was not listed")
+}
 
 $records = Read-JsonLines $scanOut
 $recordTypeCounts = [ordered]@{}
 $summary = $null
+$knownDocumentsSmokePackageEmitted = $false
 foreach ($record in $records) {
     $recordType = [string]$record.record_type
     if ([string]::IsNullOrWhiteSpace($recordType)) {
@@ -740,6 +836,11 @@ foreach ($record in $records) {
     if ($recordType -eq "scan_summary") {
         $summary = $record
     }
+    if ($recordType -eq "package" -and
+        (Get-JsonProperty $record "package_name") -eq $knownDocumentsSmokeModuleName -and
+        (Get-JsonProperty $record "source_type") -eq "powershell-module-manifest") {
+        $knownDocumentsSmokePackageEmitted = $true
+    }
 }
 
 if ($commands.Contains("scan_baseline_file") -and $commands["scan_baseline_file"].exit_code -eq 0 -and $null -eq $summary) {
@@ -747,6 +848,12 @@ if ($commands.Contains("scan_baseline_file") -and $commands["scan_baseline_file"
 }
 if ($null -ne $summary -and $summary.status -ne "complete") {
     $failures.Add("scan_summary status was not complete")
+}
+if ($knownDocumentsSmokeFixtureCreated -and -not $knownDocumentsPowerShellModulesListed) {
+    $failures.Add("known Documents smoke PowerShell module root was not listed")
+}
+if ($knownDocumentsSmokeFixtureCreated -and -not $knownDocumentsSmokePackageEmitted) {
+    $failures.Add("known Documents smoke PowerShell module package was not emitted")
 }
 
 $httpRecords = Read-JsonLines $httpReceivedOut
@@ -1156,6 +1263,7 @@ $redacted = [ordered]@{
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
     evidence_dir = $EvidenceRoot
     max_duration_seconds = $MaxDurationSeconds
+    require_redirected_documents = [bool]$RequireRedirectedDocuments
     commands = $commands
     roots_preview = [ordered]@{
         root_count = @($roots).Count
@@ -1164,6 +1272,13 @@ $redacted = [ordered]@{
         bare_userprofile_root_count = $bareUserProfileRootCount
         userprofile_go_exists = [bool]$goRootExists
         userprofile_go_listed = [bool]$goRootListed
+        known_documents_differs_from_literal = [bool]$knownDocumentsDiffersFromLiteral
+        known_documents_smoke_fixture_created = [bool]$knownDocumentsSmokeFixtureCreated
+        known_documents_powershell_modules_exists = [bool]$knownDocumentsPowerShellModulesExists
+        known_documents_powershell_modules_listed = [bool]$knownDocumentsPowerShellModulesListed
+        known_documents_windowspowershell_modules_exists = [bool]$knownDocumentsWindowsPowerShellModulesExists
+        known_documents_windowspowershell_modules_listed = [bool]$knownDocumentsWindowsPowerShellModulesListed
+        known_documents_smoke_package_emitted = [bool]$knownDocumentsSmokePackageEmitted
         claude_desktop_appdata_exists = [bool]$appDataClaudeExists
         claude_desktop_appdata_listed = [bool]$appDataClaudeListed
         claude_desktop_msix_exists = [bool]$msixClaudeExists
@@ -1279,6 +1394,8 @@ $redacted = [ordered]@{
 }
 
 $redacted | ConvertTo-Json -Depth 8 | Set-Content -Path $summaryPath -Encoding UTF8
+
+Remove-SmokeKnownDocumentsPowerShellFixture
 
 if (-not $KeepBinary -and (Test-Path $exePath)) {
     Remove-Item $exePath

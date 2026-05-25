@@ -1,0 +1,299 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Goal 6A Redirected Documents Compatibility"
+  slug: "windows-redirected-documents"
+  kind: existing_plan
+  tranche: "Support the current user's resolved Windows Documents known-folder path for PowerShell module baseline roots without broadening the compatibility-layer model."
+  status: done
+  oracle:
+    signal: "Windows baseline roots include the current user's resolved Documents known-folder path for PowerShell module roots; tests and smoke prove redirected/fallback/de-dupe boundaries; docs state unsupported all-users/registry/domain/OneDrive discovery."
+    cadence: "after source validation, after Worker implementation, and at final audit"
+    final_proof: "Receipts list source-backed decisions, changed files, focused tests, full tests, Windows smoke, docs updates, and final audit with full_outcome_complete=true."
+  intake:
+    original_request: "$goalbuddy:goal-prep for the next target: Windows Goal 6A redirected Documents compatibility."
+    interpreted_outcome: "Prepare a GoalBuddy board to implement current-user redirected Documents support for Windows PowerShell module baseline roots as a narrow compatibility-layer tranche."
+    input_shape: existing_plan
+    audience: "Windows compatibility fork maintainer"
+    authority: approved
+    proof_type: test
+    completion_proof: "Source validation, focused tests, go test ./..., Windows smoke, git diff --check, docs updates, and final audit prove the tranche is complete."
+    likely_misfire: "Treating redirected Documents as permission to crawl OneDrive broadly or add registry/SID/domain/Azure AD all-users profile discovery."
+    blind_spots_considered:
+      - "All-users redirected known folders need user-token or registry/hive behavior and remain out of scope."
+      - "Broad OneDrive folders are currently excluded for privacy; explicit curated roots must still be allowed."
+      - "Hosts without redirected Documents need deterministic fallback behavior."
+      - "Known-folder lookup may fail or be unavailable."
+      - "Resolved Documents can duplicate %USERPROFILE%\\Documents."
+    existing_plan_facts:
+      - "Use Windows known-folder resolution for the current user's Documents path."
+      - "Keep %USERPROFILE%\\Documents fallback."
+      - "Use a de-duplicated union of Documents candidates for PowerShell module baseline roots."
+      - "Do not add registry reads, SID enumeration, token impersonation, WMI, domain/Azure AD discovery, or broad OneDrive crawling."
+      - "Do not claim all-users redirected known-folder support."
+      - "Update README, docs/deployment-windows.md, docs/inventory-sources.md, and windows.md."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-redirected-documents"
+    last_error: "npx goalbuddy board exited without generating .goalbuddy-board; fetch of https://raw.githubusercontent.com/tolibear/goalbuddy/main/extend/catalog.json returned HTTP 404."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: medium
+    objective: "Source-validate the redirected Documents plan and map exact implementation boundaries before code changes."
+    inputs:
+      - "docs/goals/windows-redirected-documents/goal.md"
+      - "windows.md Goal 6 and current support boundary"
+      - "Current root discovery and Windows platform hooks"
+      - "Official Microsoft known-folder and PowerShell module-path documentation"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Do not implement registry, SID, domain, Azure AD, token impersonation, WMI, package-manager command, or broad OneDrive crawling."
+      - "Do not change schema, parser behavior, profile semantics, or root-kind names."
+    expected_output:
+      - "approved | revise_plan | blocked"
+      - "Exact Windows API/source evidence"
+      - "Implementation boundary for current-user vs all-users"
+      - "Allowed files for Worker"
+      - "Verify commands"
+      - "Stop-if conditions"
+    receipt:
+      result: done
+      decision: approved
+      summary: "Source validation supports a narrow current-user Documents known-folder slice. PowerShell CurrentUser module roots are defined under the user's Documents folder, and Microsoft documents that folder redirection/OneDrive can change that location. SHGetKnownFolderPath can retrieve FOLDERID_Documents for the current user with hToken=NULL; using another user's token/hive is explicitly a broader privileged path and remains out of scope."
+      evidence:
+        - "Microsoft about_PSModulePath: CurrentUser PowerShell modules on Windows live under $HOME\\Documents\\PowerShell\\Modules; Windows PowerShell 5.1 uses $HOME\\Documents\\WindowsPowerShell\\Modules; the specific Documents location varies with folder redirection and OneDrive, and [Environment]::GetFolderPath('MyDocuments') verifies it."
+        - "Microsoft SHGetKnownFolderPath docs: hToken=NULL requests the known folder for the current user; specific-user lookup requires a user token and mounted registry hive."
+        - "Microsoft KNOWNFOLDERID docs: FOLDERID_Documents is a PERUSER known folder with default path %USERPROFILE%\\Documents."
+        - "Current code uses %USERPROFILE%\\Documents literally for Windows PowerShell module roots, so redirected current-user Documents can be missed."
+        - "Current walker already prunes broad OneDrive/cloud-sync directories under broad roots; explicit curated roots remain the right compatibility-layer mechanism."
+      citations:
+        - "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath"
+        - "https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath"
+        - "https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid"
+      implementation_boundary:
+        current_user: "Resolve the current user's Documents known-folder path and add PowerShell/Modules plus WindowsPowerShell/Modules candidates when present, de-duplicated with %USERPROFILE%\\Documents."
+        all_users: "Keep <home>\\Documents only; do not query other users' tokens, registry hives, SIDs, domain/Azure AD profiles, or OneDrive state."
+        fallback: "If known-folder lookup fails or returns empty, keep existing %USERPROFILE%\\Documents behavior."
+      worker_allowed_files:
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+        - "README.md"
+        - "docs/deployment-windows.md"
+        - "docs/inventory-sources.md"
+        - "windows.md"
+        - "docs/goals/windows-redirected-documents/state.yaml"
+      verify:
+        - "go test ./cmd/bumblebee"
+        - "go test ./cmd/bumblebee ./internal/walk ./internal/scanner"
+        - "go test ./..."
+        - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+        - "git diff --check"
+      stop_if:
+        - "Need registry, SID, domain, Azure AD, token impersonation, WMI, package-manager command, or broad OneDrive crawling."
+        - "Need schema, parser, profile, ecosystem, root-kind, or output-shape changes."
+        - "Need all-users redirected Documents discovery."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review T001 and approve the largest safe Worker package for redirected Documents compatibility."
+    inputs:
+      - "T001 receipt"
+      - "Goal oracle"
+      - "Current dirty diff"
+    constraints:
+      - "Do not implement."
+      - "Reject support divergence that broadens Windows beyond the compatibility-layer model."
+      - "Reject registry/SID/domain/Azure AD/all-users redirected known-folder discovery unless explicitly converted into a separate goal."
+    expected_output:
+      - "approved | blocked | revise_plan"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      rationale: "The Scout decision is source-backed and bounded to current-user known-folder resolution. The implementation can stay behind Windows platform hooks, preserve fallback behavior, and avoid schema/parser/profile changes."
+      worker_objective: "Implement current-user resolved Documents known-folder support for Windows PowerShell module baseline roots, plus tests, smoke receipt, docs, and GoalBuddy receipts."
+      allowed_files:
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+        - "README.md"
+        - "docs/deployment-windows.md"
+        - "docs/inventory-sources.md"
+        - "windows.md"
+        - "docs/goals/windows-redirected-documents/state.yaml"
+      verify:
+        - "go test ./cmd/bumblebee"
+        - "go test ./cmd/bumblebee ./internal/walk ./internal/scanner"
+        - "go test ./..."
+        - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+        - "git diff --check"
+      stop_if:
+        - "Need files outside allowed_files."
+        - "Need registry, SID, domain, Azure AD, token impersonation, WMI, package-manager command, or broad OneDrive crawling."
+        - "Need schema, parser, profile, ecosystem, root-kind, or output-shape changes."
+        - "Need all-users redirected Documents discovery."
+        - "Verification fails twice for the same reason."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement current-user resolved Documents known-folder support for Windows PowerShell module baseline roots, plus tests, smoke receipt, docs, and GoalBuddy receipts."
+    allowed_files:
+      - "cmd/bumblebee/roots_windows.go"
+      - "cmd/bumblebee/main_windows_test.go"
+      - "scripts/windows-smoke.ps1"
+      - "README.md"
+      - "docs/deployment-windows.md"
+      - "docs/inventory-sources.md"
+      - "windows.md"
+      - "docs/goals/windows-redirected-documents/state.yaml"
+    verify:
+      - "go test ./cmd/bumblebee"
+      - "go test ./cmd/bumblebee ./internal/walk ./internal/scanner"
+      - "go test ./..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Need registry, SID, domain, Azure AD, token impersonation, WMI, package-manager command, or broad OneDrive crawling."
+      - "Need schema, parser, profile, ecosystem, root-kind, or output-shape changes."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+        - "README.md"
+        - "docs/deployment-windows.md"
+        - "docs/inventory-sources.md"
+        - "windows.md"
+        - "docs/goals/windows-redirected-documents/state.yaml"
+      commands:
+        - cmd: "go test ./cmd/bumblebee"
+          status: pass
+        - cmd: "go test ./cmd/bumblebee ./internal/walk ./internal/scanner"
+          status: pass
+        - cmd: "go test ./..."
+          status: pass
+        - cmd: "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      summary: "Implemented current-user Windows Documents known-folder resolution for PowerShell module baseline roots. The Windows hook now de-duplicates %USERPROFILE%\\Documents with the resolved Documents path, applies known-folder resolution only to the current home, preserves all-users literal <home>\\Documents behavior, and leaves schema/parser/profile/root-kind behavior unchanged. The smoke script now creates a temporary run-specific PowerShell module under the actual current-user known Documents path, proves the root is listed and the module package is emitted, and removes the fixture afterward. A -RequireRedirectedDocuments smoke gate was added for lab/enterprise hosts where Windows actually reports redirected Documents; it fails early on non-redirected profiles."
+      smoke_summary: "C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-windows-smoke\\20260525-172746\\smoke-summary.redacted.json"
+      smoke_known_documents:
+        differs_from_literal: false
+        smoke_fixture_created: true
+        powershell_modules_exists: true
+        powershell_modules_listed: true
+        windowspowershell_modules_exists: false
+        windowspowershell_modules_listed: false
+        smoke_package_emitted: true
+        leftover_smoke_module_count: 0
+      tests_added:
+        - "Current-user redirected Documents roots are emitted when module directories exist."
+        - "Known-folder lookup fallback leaves absent roots non-fatal."
+        - "Resolved Documents equal to %USERPROFILE%\\Documents de-duplicates roots."
+        - "--all-users applies redirected Documents only to the current user, not every enumerated home."
+      boundaries_preserved:
+        - "No registry reads."
+        - "No SID/domain/Azure AD discovery."
+        - "No token impersonation or WMI."
+        - "No broad OneDrive crawling."
+        - "No all-users redirected known-folder support claim."
+        - "-RequireRedirectedDocuments is a manual/lab validation gate, not a production behavior change."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether Windows Goal 6A redirected Documents compatibility is complete."
+    inputs:
+      - "All task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "windows.md Goal 6 and support boundary"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if any required Worker task is still queued or active."
+      - "Reject completion if docs imply all-users redirected known-folder, registry, domain, Azure AD, SID, WMI, token impersonation, or broad OneDrive crawling support."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "Goal 6A is complete. The implementation, tests, smoke, and docs satisfy the oracle for current-user redirected Documents compatibility while preserving the compatibility-layer boundary. A follow-up smoke gap was closed by using the real current-user known Documents path for a temporary module fixture instead of relying on this host already having redirected Documents or existing module content. The remaining environmental proof is covered by the new -RequireRedirectedDocuments smoke gate, which must be run on a legitimately redirected Windows profile."
+      evidence:
+        - "cmd/bumblebee/roots_windows.go resolves FOLDERID_Documents for the current user only and de-duplicates it with %USERPROFILE%\\Documents."
+        - "cmd/bumblebee/main_windows_test.go covers redirected, fallback/absent, de-dupe, roots output, and --all-users current-user-only behavior."
+        - "scripts/windows-smoke.ps1 records redacted known-Documents booleans, creates a temporary PowerShell module under the actual current-user known Documents path, fails if that root is not listed, fails if the module package is not emitted, and cleans up the fixture."
+        - "scripts/windows-smoke.ps1 supports -RequireRedirectedDocuments so redirected-policy validation fails early unless Windows itself reports a redirected current-user Documents known-folder path."
+        - "README.md, docs/deployment-windows.md, docs/inventory-sources.md, and windows.md state current-user support and keep all-users/broad OneDrive discovery unsupported."
+        - "Verification passed: focused Go tests, full go test ./..., Windows smoke, and git diff --check."
+      missing_evidence: []
+      next_task: null
+
+checks:
+  dirty_fingerprint: "Goal 6A implementation complete; worktree contains only this tranche's uncommitted changes."
+  last_verification:
+    result: pass
+    task: T999
+    commands:
+      - "go test ./cmd/bumblebee"
+      - "go test ./cmd/bumblebee ./internal/walk ./internal/scanner"
+      - "go test ./..."
+      - "powershell -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"
+    reason: "All Goal 6A verification passed; git diff check emitted only line-ending warnings."

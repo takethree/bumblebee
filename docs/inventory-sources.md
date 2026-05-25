@@ -66,11 +66,14 @@ roots when those directories exist:
 
 - `%USERPROFILE%\Documents\PowerShell\Modules`
 - `%USERPROFILE%\Documents\WindowsPowerShell\Modules`
+- Current user's resolved Windows `Documents` known-folder path with
+  `PowerShell\Modules` and `WindowsPowerShell\Modules`
 - `%ProgramFiles%\PowerShell\Modules`
 - `%ProgramFiles%\WindowsPowerShell\Modules`
 
-These are literal compatibility-layer candidates. Redirected Documents,
-OneDrive-known-folder resolution, custom `PSModulePath` registry entries, and
+These are literal compatibility-layer candidates plus the current user's
+Windows known-folder `Documents` path. All-users redirected Documents,
+broader OneDrive discovery, custom `PSModulePath` registry entries, and
 Gallery/API discovery are not claimed.
 
 These npm/Python/pipx roots are also literal compatibility-layer candidates.
@@ -79,8 +82,8 @@ site pattern, arbitrary virtualenv discovery, custom `PIPX_HOME` expansion,
 registry reads, and package-manager command execution are not claimed.
 
 Windows default roots do not currently claim Ruby/Bundler, Composer, WSL,
-redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX, or Visual
-Studio extensions. NuGet project/deep metadata files are parsed when
+all-users redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX, or
+Visual Studio extensions. NuGet project/deep metadata files are parsed when
 they appear under operator-supplied roots, but NuGet global package-cache
 baseline roots are not claimed.
 
