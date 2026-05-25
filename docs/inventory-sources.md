@@ -36,6 +36,30 @@ Each scan profile reads from a different slice of the sources below:
 The `source_type` values emitted are the same across profiles. What
 changes is the population of files the walker visits.
 
+### Windows profile mapping
+
+Windows support is a compatibility layer with narrower default roots than
+macOS/Linux. The tested Windows `baseline` population currently includes:
+
+- `%USERPROFILE%\go` when present.
+- Windows editor-extension roots for VS Code, Cursor, Windsurf, and VSCodium.
+- Windows MCP config roots, including Claude Desktop.
+- Chrome and Edge extension roots under `%LOCALAPPDATA%`.
+- Firefox profile roots under `%APPDATA%`.
+
+Windows `project` and `deep` use the same parsers as other platforms over
+operator-supplied roots. `deep` has no defaults and requires `--root`.
+Windows `--all-users` expands implemented `baseline` and `project` defaults
+across real local profile directories under `C:\Users`; it does not add bare
+home directories and cannot be combined with explicit `--root` entries or
+`--profile deep`.
+
+Windows default roots do not currently claim user npm/global, Python,
+pipx/virtualenv, Ruby/Bundler, Composer, Brave, Chromium, Vivaldi, LibreWolf,
+Waterfox, WSL, redirected known folders, or Windows-native ecosystems such as
+NuGet, PowerShell modules, Chocolatey, Scoop, winget/MSIX/AppX, and Visual
+Studio extensions.
+
 ## npm
 
 Files read:
@@ -171,8 +195,8 @@ Files read:
   `// indirect` trailing comment. Lower confidence than `go.sum` because
   `go.mod` requires may not all be in the final build set.
 
-Baseline includes `~/go` (and therefore `~/go/pkg/mod`, the per-user
-module cache) when it exists. Each cached module checks in as
+Baseline includes `~/go` on macOS/Linux and `%USERPROFILE%\go` on Windows
+(and therefore the per-user module cache) when it exists. Each cached module checks in as
 `<mod>@<version>/go.mod`, so on Go-heavy hosts the baseline output can be
 dominated by Go cache records — often tens of thousands of lines. That
 is intentional package-presence coverage of every module version Go has
@@ -267,6 +291,8 @@ anywhere under a configured root):
 - Linux Claude Desktop: `~/.config/Claude/claude_desktop_config.json`,
   `~/.config/Claude Code/claude_desktop_config.json`
 - Windows Claude Desktop: `%APPDATA%\Claude\claude_desktop_config.json`
+- Windows Claude Desktop MSIX:
+  `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
 - Per-project: `.mcp.json` at a repo root
 
 Recognized envelopes:
@@ -412,6 +438,13 @@ as an explicit `--root` (the baseline curated entry). On Linux the
 deep walk descends into `~/.config/<browser>/<profile>/` but, again,
 only opens path-shape-matched manifests.
 
+On Windows, the compatibility layer currently adds default browser roots for
+Chrome and Edge `Default` / `Profile 1`..`Profile 9` extension directories
+under `%LOCALAPPDATA%`, plus Firefox profile roots under `%APPDATA%`. Brave,
+Chromium, Vivaldi, LibreWolf, and Waterfox are not claimed as Windows default
+roots yet; pass explicit `--root` values for experiments until those layouts
+are implemented and tested.
+
 Example jq filters:
 
 ```
@@ -446,6 +479,18 @@ Known extensions roots (matched by trailing path segments):
 - `~/.windsurf/extensions`
 - `~/.windsurf-server/extensions`
 - `~/.vscodium/extensions`
+
+Windows compatibility-layer roots use the same trailing extension directories
+under `%USERPROFILE%`, for example:
+
+- `%USERPROFILE%\.vscode\extensions`
+- `%USERPROFILE%\.vscode-server\extensions`
+- `%USERPROFILE%\.vscode-insiders\extensions`
+- `%USERPROFILE%\.cursor\extensions`
+- `%USERPROFILE%\.cursor-server\extensions`
+- `%USERPROFILE%\.windsurf\extensions`
+- `%USERPROFILE%\.windsurf-server\extensions`
+- `%USERPROFILE%\.vscodium\extensions`
 
 Captured fields emitted on the record: `package_name` (the full
 `publisher.name` identifier), `version`, and `package_manager` (vscode /
@@ -525,6 +570,12 @@ strong installed-state correlation tooling today.
 - Cargo (`Cargo.lock`).
 - Maven / Gradle (`pom.xml`, lockfiles).
 - NuGet (`packages.lock.json`).
+- PowerShell modules.
+- Chocolatey packages.
+- Scoop packages.
+- winget/MSIX/AppX inventory.
+- Visual Studio extensions.
+- WSL package state from the Windows binary.
 - Hex (`mix.lock`).
 - Swift PM (`Package.resolved`).
 - Yarn PnP (`.pnp.data.json`); the `yarn.lock` parser still covers PnP

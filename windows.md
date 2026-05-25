@@ -224,21 +224,32 @@ file output for log shippers, HTTPS bearer/HMAC output with environment-backed
 secrets, current-user versus elevated `--all-users` permissions, profile
 cadence, stable `--device-id-env` identity, verification steps, and the
 operator meaning of `diagnostics_count`. README and broader user-facing docs
-remain untouched until Goal 9.
+are now covered by Goal 9.
 
 ## Goal 9: Update User-Facing Docs
 
-- [ ] Update `README.md` scope from macOS/Linux only once Windows support is real.
-- [ ] Update `docs/inventory-sources.md` with Windows profile-to-source mapping.
-- [ ] Add Windows root examples to quick start.
-- [ ] Add Windows notes for MCP config locations.
-- [ ] Add Windows notes for browser extension profile locations.
-- [ ] Add Windows notes for editor extension roots.
-- [ ] Clearly label unsupported Windows ecosystems.
-- [ ] Add a Windows troubleshooting section.
+- [x] Update `README.md` scope from macOS/Linux only once Windows support is real.
+- [x] Update `docs/inventory-sources.md` with Windows profile-to-source mapping.
+- [x] Add Windows root examples to quick start.
+- [x] Add Windows notes for MCP config locations.
+- [x] Add Windows notes for browser extension profile locations.
+- [x] Add Windows notes for editor extension roots.
+- [x] Clearly label unsupported Windows ecosystems.
+- [x] Add a Windows troubleshooting section.
 
 Why: docs should not claim Windows support until the behavior is implemented
 and tested, but the fork needs a checklist for every doc touchpoint.
+
+Receipt: `README.md` now describes Windows as a compatibility layer rather
+than broad full support, adds PowerShell quick-start examples, links deployment
+details to `docs/deployment-windows.md`, lists the tested Windows support
+boundary, and adds Windows troubleshooting for empty roots, `device_id`,
+`diagnostics_count`, ACL diagnostics, `--all-users`, WSL, and raw evidence
+hygiene. `docs/inventory-sources.md` now includes Windows profile mapping,
+Windows Claude Desktop MCP locations, Windows Chrome/Edge/Firefox notes,
+Windows VS Code-family editor roots, and explicit unsupported Windows
+ecosystems. Goals 3, 4, 6, 7, 10, 11, and 13 remain open where behavior is not
+implemented or tested.
 
 ## Goal 10: Decide Windows-Native Ecosystem Scope
 
@@ -394,9 +405,11 @@ Known limitations / current support boundary:
 - Deployment/docs boundary: Windows deployment guidance is now captured in
   `docs/deployment-windows.md` for Task Scheduler, Intune/RMM/SCCM,
   incident-response, recurring baseline, file/log-shipper, HTTPS secret,
-  permission, cadence, and verification guidance. README and broader
-  user-facing docs should not broadly claim Windows support until Goal 9 is
-  completed.
+  permission, cadence, and verification guidance.
+- User-facing docs boundary: README and inventory-source docs now describe the
+  Windows compatibility layer, but they intentionally keep unimplemented roots,
+  native ecosystems, WSL, redirected known folders, and untested browser
+  families outside the support claim.
 - Native ecosystem boundary: NuGet, PowerShell modules, Chocolatey, Scoop,
   winget/MSIX/AppX, Visual Studio extensions, Cargo, Maven, and Gradle scope
   decisions are still open in Goal 10. Unsupported native ecosystems must stay

@@ -1,7 +1,9 @@
 # bumblebee
 
 Bumblebee is a read-only inventory collector for package, extension,
-and developer-tool metadata on macOS and Linux developer endpoints.
+and developer-tool metadata on macOS, Linux, and Windows developer
+endpoints. Windows support is a compatibility layer with explicit
+boundaries; see [Windows compatibility layer](#windows-compatibility-layer).
 
 It answers a narrow supply-chain response question: when an advisory
 names a package, extension, or version, which developer machines show
@@ -30,6 +32,8 @@ know what they are looking for.
   and credentials in their `env` blocks; Bumblebee parses these
   configs for the server inventory it needs but does not emit those
   values in its records.
+- Windows coverage is intentionally bounded to the compatibility layer
+  documented below and in [docs/inventory-sources.md](docs/inventory-sources.md).
 
 ## Coverage
 
@@ -147,6 +151,82 @@ of `*.json` catalogs (merged non-recursively, all files must share
 `schema_version`). `--findings-only` requires `--exposure-catalog` and
 suppresses package records while keeping findings. `bumblebee scan --help`
 lists every flag.
+
+### Windows quick start
+
+Build or install `bumblebee.exe`, then use the same profiles from
+PowerShell:
+
+```powershell
+# Baseline inventory using the Windows compatibility layer.
+.\bumblebee.exe scan --profile baseline > inventory.ndjson
+
+# Daily project sweep with explicit Windows roots.
+.\bumblebee.exe scan --profile project `
+  --root "$env:USERPROFILE\source" `
+  --root "$env:USERPROFILE\Projects"
+
+# Preview Windows baseline roots without scanning.
+.\bumblebee.exe roots --profile baseline
+
+# On-demand exposure scan against an explicit root.
+.\bumblebee.exe scan --profile deep `
+  --root "$env:USERPROFILE" `
+  --exposure-catalog .\catalog.json `
+  --max-duration 10m
+```
+
+For scheduled Windows deployment, file/HTTPS output, `--device-id-env`,
+and `--all-users` examples, see
+[docs/deployment-windows.md](docs/deployment-windows.md).
+
+## Windows compatibility layer
+
+The Windows compatibility layer has the same output schema and scan profiles as
+macOS/Linux, but its root discovery is deliberately narrower. Current tested
+coverage includes:
+
+- Explicit-root `project` and `deep` scans over Windows paths, including paths
+  with spaces.
+- Current-user `baseline` scans.
+- Windows `--all-users` expansion across real local profile directories under
+  `C:\Users`, without adding bare home directories.
+- `%USERPROFILE%\go` when present.
+- VS Code-family editor extension roots for VS Code, Cursor, Windsurf, and
+  VSCodium.
+- Windows Claude Desktop MCP config roots, including the MSIX package path.
+- Chrome, Edge, and Firefox extension roots when present.
+- File output, HTTP(S) output, and trailing `scan_summary.status=complete` for
+  healthy runs.
+
+Not currently claimed on Windows:
+
+- User npm/global, Python, pipx/virtualenv, Ruby/Bundler, and Composer default
+  roots.
+- Brave, Chromium, Vivaldi, LibreWolf, and Waterfox default browser roots.
+- Windows-native ecosystems such as NuGet, PowerShell modules, Chocolatey,
+  Scoop, winget/MSIX/AppX, and Visual Studio extensions.
+- WSL package state. Run the Linux Bumblebee binary inside each distro until
+  WSL behavior is explicitly defined.
+- Redirected known folders and broader OneDrive profile discovery.
+
+### Windows troubleshooting
+
+- If `roots --profile baseline` reports no roots, the compatibility layer did
+  not find any implemented Windows roots on that host. Use `--root` with
+  `project` or `deep`, or install/use one of the currently supported tools.
+- If `endpoint.device_id` is missing, set a stable fleet identifier in the
+  environment and pass `--device-id-env BUMBLEBEE_DEVICE_ID`.
+- `diagnostics_count` includes informational diagnostics, warnings, and errors.
+  A non-zero count is not automatically a failed scan; use
+  `scan_summary.status` as the completion signal.
+- ACL-denied paths are reported as diagnostics. The walker is read-only and
+  continues when possible.
+- `--all-users` expands local profile directories only. It does not query the
+  registry, enumerate SIDs, discover domain or Azure AD accounts, inspect
+  OneDrive redirected known folders, or work with `--profile deep`.
+- Keep raw NDJSON, hostnames, usernames, SIDs, tokens, and full profile paths
+  out of committed receipts.
 
 ## Output
 

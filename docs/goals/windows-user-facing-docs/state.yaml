@@ -1,0 +1,200 @@
+version: 2
+
+goal:
+  title: "Windows User-Facing Docs"
+  slug: "windows-user-facing-docs"
+  kind: existing_plan
+  tranche: "Implement Goal 9 user-facing documentation for the Windows compatibility layer and update the checklist receipt."
+  status: done
+  oracle:
+    signal: "Goal 9 in windows.md is accurately closed by README.md and docs/inventory-sources.md updates that describe Windows compatibility-layer behavior without overclaiming unsupported areas."
+    cadence: "after the Worker package and at final audit"
+    final_proof: "README.md, docs/inventory-sources.md, and windows.md are updated; Goal 9 boxes are checked only for covered topics; rg and git diff --check pass; final audit records full_outcome_complete: true."
+  intake:
+    original_request: "now come up with a plan for the next part, then $goalbuddy:goal-prep"
+    interpreted_outcome: "Prepare a GoalBuddy board to execute the approved Goal 9 user-facing Windows docs plan carefully."
+    input_shape: existing_plan
+    audience: "Bumblebee users, operators, and maintainers reading README and inventory-source docs"
+    authority: approved
+    proof_type: artifact
+    completion_proof: "User-facing docs and windows.md receipt exist, cover Goal 9, and pass doc-only verification."
+    likely_misfire: "Public docs imply full Windows parity or close unsupported Windows gaps instead of documenting a bounded compatibility layer."
+    blind_spots_considered:
+      - "README must update scope without becoming a broad Windows launch announcement."
+      - "Windows quick-start examples need PowerShell and bumblebee.exe shapes."
+      - "inventory-sources.md needs Windows source mapping without claiming unimplemented roots."
+      - "MCP, browser, and editor-extension notes must distinguish tested from planned families."
+      - "Unsupported Windows-native ecosystems and WSL must remain explicit."
+      - "Troubleshooting should explain empty roots, device_id, ACL diagnostics, diagnostics_count, and --all-users limits."
+    existing_plan_facts:
+      - "Update README.md scope from macOS/Linux only to include the Windows compatibility layer."
+      - "Update docs/inventory-sources.md with Windows profile-to-source mapping."
+      - "Add Windows root examples to quick start."
+      - "Add Windows notes for MCP config locations."
+      - "Add Windows notes for browser extension profile locations."
+      - "Add Windows notes for editor extension roots."
+      - "Clearly label unsupported Windows ecosystems."
+      - "Add a Windows troubleshooting section."
+      - "Update windows.md Goal 9 checkboxes and receipt."
+      - "Do not touch code, tests, schemas, CI, release config, generated evidence, or native ecosystem implementation."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-user-facing-docs"
+    reason: "npx/npm was not available on PATH during goal prep."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: default
+    objective: "Validate the approved Goal 9 plan against current docs and choose the exact Worker package."
+    inputs:
+      - "windows.md Goal 9"
+      - "README.md"
+      - "docs/inventory-sources.md"
+      - "docs/deployment-windows.md"
+      - "Approved proposed plan from the preceding chat turn"
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Preserve the compatibility-layer framing."
+      - "Reject code, test, schema, CI, release config, generated evidence, or native ecosystem implementation work."
+    expected_output:
+      - "approved | revise"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      summary: "Approved one coherent docs-only Worker slice: update README.md, docs/inventory-sources.md, and windows.md Goal 9 while preserving compatibility-layer boundaries."
+      allowed_files:
+        - "README.md"
+        - "docs/inventory-sources.md"
+        - "windows.md"
+      verify:
+        - "rg -n \"Windows compatibility layer|bumblebee.exe|PowerShell|--root|roots --profile baseline|MCP|Claude|Chrome|Edge|Firefox|VS Code|Cursor|Windsurf|VSCodium|WSL|NuGet|PowerShell modules|Chocolatey|Scoop|winget|diagnostics_count|--all-users\" README.md docs/inventory-sources.md windows.md"
+        - "git diff --check -- README.md docs/inventory-sources.md windows.md"
+        - "git diff --name-only"
+      stop_if:
+        - "Need files outside README.md, docs/inventory-sources.md, or windows.md."
+        - "Need unsupported Windows support claims or native ecosystem implementation."
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement the approved Goal 9 user-facing Windows documentation slice."
+    allowed_files:
+      - "README.md"
+      - "docs/inventory-sources.md"
+      - "windows.md"
+    verify:
+      - "rg -n \"Windows compatibility layer|bumblebee.exe|PowerShell|--root|roots --profile baseline|MCP|Claude|Chrome|Edge|Firefox|VS Code|Cursor|Windsurf|VSCodium|WSL|NuGet|PowerShell modules|Chocolatey|Scoop|winget|diagnostics_count|--all-users\" README.md docs/inventory-sources.md windows.md"
+      - "git diff --check -- README.md docs/inventory-sources.md windows.md"
+      - "git diff --name-only"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Need to edit code, tests, schemas, CI, release config, generated evidence, or native ecosystem implementation."
+      - "Need to claim support for unimplemented Windows roots, WSL, native ecosystems, unsupported browser families, redirected known folders, or untested account shapes."
+      - "Documentation cannot close a Goal 9 checkbox honestly."
+    receipt:
+      result: done
+      changed_files:
+        - "README.md"
+        - "docs/inventory-sources.md"
+        - "windows.md"
+      commands:
+        - cmd: "rg -n \"Windows compatibility layer|bumblebee.exe|PowerShell|--root|roots --profile baseline|MCP|Claude|Chrome|Edge|Firefox|VS Code|Cursor|Windsurf|VSCodium|WSL|NuGet|PowerShell modules|Chocolatey|Scoop|winget|diagnostics_count|--all-users\" README.md docs/inventory-sources.md windows.md"
+          status: pass
+        - cmd: "git diff --check -- README.md docs/inventory-sources.md windows.md"
+          status: pass
+        - cmd: "git diff --name-only"
+          status: pass
+        - cmd: "Trailing-whitespace scan over README.md, docs/inventory-sources.md, and windows.md"
+          status: pass
+      summary: "Updated README.md and docs/inventory-sources.md with bounded Windows compatibility-layer user-facing docs, then closed Goal 9 in windows.md with a receipt while preserving unsupported Windows gaps."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: default
+    objective: "Audit whether Goal 9 is complete and the user-facing docs remain compatibility-layer scoped."
+    inputs:
+      - "T001 receipt"
+      - "T002 receipt"
+      - "Current diff"
+      - "Verification command output"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if unsupported Windows behavior is claimed."
+      - "Reject completion if Goal 9 boxes are checked without matching doc coverage."
+      - "Reject completion if files outside README.md, docs/inventory-sources.md, windows.md, or GoalBuddy control files changed."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      checklist:
+        - requirement: "Update README.md scope from macOS/Linux only."
+          evidence: "README.md now says macOS, Linux, and Windows developer endpoints, immediately bounded as a Windows compatibility layer."
+        - requirement: "Add Windows root examples to quick start."
+          evidence: "README.md includes a Windows quick start with bumblebee.exe, PowerShell continuations, project/deep --root examples, and roots --profile baseline."
+        - requirement: "Add Windows support boundary and troubleshooting."
+          evidence: "README.md includes a Windows compatibility-layer section, not-currently-claimed list, and troubleshooting for empty roots, device_id, diagnostics_count, ACL diagnostics, --all-users, WSL, and raw evidence hygiene."
+        - requirement: "Update docs/inventory-sources.md with Windows profile/source mapping."
+          evidence: "docs/inventory-sources.md includes Windows profile mapping, Go root wording, Claude MCP paths, Chrome/Edge/Firefox notes, VS Code-family editor roots, and unsupported Windows ecosystems."
+        - requirement: "Close Goal 9 without closing unsupported goals."
+          evidence: "windows.md Goal 9 is checked with a receipt; Goals 3, 4, 6, 7, 10, 11, and 13 still preserve open items."
+        - requirement: "Run doc verification."
+          evidence: "rg coverage check passed; git diff --check passed; trailing-whitespace scan passed; git diff --name-only showed only README.md, docs/inventory-sources.md, and windows.md among tracked edits."
+      summary: "Goal 9 is complete for this tranche. User-facing docs now describe the tested Windows compatibility layer and keep unsupported Windows areas explicit."
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T002
+    commands:
+      - "rg -n \"Windows compatibility layer|bumblebee.exe|PowerShell|--root|roots --profile baseline|MCP|Claude|Chrome|Edge|Firefox|VS Code|Cursor|Windsurf|VSCodium|WSL|NuGet|PowerShell modules|Chocolatey|Scoop|winget|diagnostics_count|--all-users\" README.md docs/inventory-sources.md windows.md"
+      - "git diff --check -- README.md docs/inventory-sources.md windows.md"
+      - "git diff --name-only"
+      - "Trailing-whitespace scan over README.md, docs/inventory-sources.md, and windows.md"
