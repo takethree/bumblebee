@@ -204,18 +204,27 @@ registry state, Entra state, Intune state, or hardware identifiers.
 
 ## Goal 8: Add Windows Deployment Documentation
 
-- [ ] Create Windows deployment guidance separate from `docs/deployment-macos.md`.
-- [ ] Document Task Scheduler deployment.
-- [ ] Document Intune/RMM/SCCM-style deployment assumptions.
-- [ ] Document one-shot incident response runs with explicit `--root`.
-- [ ] Document recurring baseline runs.
-- [ ] Document output to file plus log shipper.
-- [ ] Document HTTPS output with token/HMAC secrets supplied by environment variables.
-- [ ] Document required permissions for current-user and all-user scans.
-- [ ] Document recommended cadence by profile.
-- [ ] Document Windows verification steps.
+- [x] Create Windows deployment guidance separate from `docs/deployment-macos.md`.
+- [x] Document Task Scheduler deployment.
+- [x] Document Intune/RMM/SCCM-style deployment assumptions.
+- [x] Document one-shot incident response runs with explicit `--root`.
+- [x] Document recurring baseline runs.
+- [x] Document output to file plus log shipper.
+- [x] Document HTTPS output with token/HMAC secrets supplied by environment variables.
+- [x] Document required permissions for current-user and all-user scans.
+- [x] Document recommended cadence by profile.
+- [x] Document Windows verification steps.
 
 Why: launchd, TCC, and `/Users` guidance does not apply to Windows operators.
+
+Receipt: `docs/deployment-windows.md` now documents Windows deployment for the
+compatibility layer only. It covers Task Scheduler, Intune/RMM/SCCM deployment
+assumptions, recurring baseline runs, explicit-root incident-response runs,
+file output for log shippers, HTTPS bearer/HMAC output with environment-backed
+secrets, current-user versus elevated `--all-users` permissions, profile
+cadence, stable `--device-id-env` identity, verification steps, and the
+operator meaning of `diagnostics_count`. README and broader user-facing docs
+remain untouched until Goal 9.
 
 ## Goal 9: Update User-Facing Docs
 
@@ -382,10 +391,12 @@ Known limitations / current support boundary:
   machine identity supplied through `--device-id-env`. Broader
   `endpoint.username` shape validation across local, domain, and Azure AD
   users remains open Goal 7 work.
-- Deployment/docs boundary: Task Scheduler, Intune/RMM/SCCM, incident-response,
-  recurring baseline, file/log-shipper, HTTPS secret, permission, cadence, and
-  verification guidance are not written yet. README and user-facing docs should
-  not broadly claim Windows support until Goals 8 and 9 are completed.
+- Deployment/docs boundary: Windows deployment guidance is now captured in
+  `docs/deployment-windows.md` for Task Scheduler, Intune/RMM/SCCM,
+  incident-response, recurring baseline, file/log-shipper, HTTPS secret,
+  permission, cadence, and verification guidance. README and broader
+  user-facing docs should not broadly claim Windows support until Goal 9 is
+  completed.
 - Native ecosystem boundary: NuGet, PowerShell modules, Chocolatey, Scoop,
   winget/MSIX/AppX, Visual Studio extensions, Cargo, Maven, and Gradle scope
   decisions are still open in Goal 10. Unsupported native ecosystems must stay
@@ -393,10 +404,8 @@ Known limitations / current support boundary:
 - WSL boundary: no WSL filesystem coverage is claimed. Until Goal 11 makes an
   explicit decision, WSL users should not assume the Windows binary inventories
   Linux distro package state.
-- Diagnostics boundary: the real-profile smoke currently reports
-  `diagnostics_count` as informational diagnostics, not only warnings or
-  errors. Operator-facing docs still need to decide whether to clarify that
-  wording.
+- Diagnostics boundary: the Windows deployment guide clarifies that
+  `diagnostics_count` includes informational diagnostics, warnings, and errors.
 
 Use `powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1` for
 future real-profile validation runs. The script builds into `%TEMP%`, runs the
@@ -407,7 +416,7 @@ Known gaps from the smoke run:
 
 - [ ] Run a real-profile baseline on a machine with `%USERPROFILE%\go` present, because the first real smoke did not exercise a real `user_package_root`.
 - [x] Run a real-profile MCP smoke on a machine with a Windows Claude Desktop config root present.
-- [ ] Decide whether operator-facing docs should clarify that `diagnostics_count` includes informational diagnostics, not only warnings or errors.
+- [x] Decide whether operator-facing docs should clarify that `diagnostics_count` includes informational diagnostics, not only warnings or errors.
 - [x] Add a redacted smoke-test receipt pattern for future Windows validation runs so raw NDJSON inventory is never checked in.
 - [ ] Keep the remaining browser families open until separately exercised.
 

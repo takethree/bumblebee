@@ -1,0 +1,195 @@
+version: 2
+
+goal:
+  title: "Windows Deployment Documentation"
+  slug: "windows-deployment-documentation"
+  kind: existing_plan
+  tranche: "Implement Goal 8 documentation for the Windows compatibility layer and update the checklist receipt."
+  status: done
+  oracle:
+    signal: "Goal 8 in windows.md is accurately closed by docs/deployment-windows.md, with doc-only checks proving completeness and compatibility-layer scope."
+    cadence: "after the Worker package and at final audit"
+    final_proof: "docs/deployment-windows.md exists; windows.md Goal 8 boxes are updated only for covered topics; diagnostics_count wording is handled; rg and git diff --check pass; final audit records full_outcome_complete: true."
+  intake:
+    original_request: "okay come up with a plan please, then $goalbuddy:goal-prep"
+    interpreted_outcome: "Prepare a GoalBuddy board to execute the approved Windows deployment documentation plan carefully."
+    input_shape: existing_plan
+    audience: "Windows operators maintaining the Bumblebee compatibility-layer fork"
+    authority: approved
+    proof_type: artifact
+    completion_proof: "The Windows deployment guide and windows.md receipt exist, cover Goal 8, and pass doc-only verification."
+    likely_misfire: "Turning this into broad public Windows support docs or implementation work instead of bounded deployment documentation for the compatibility layer."
+    blind_spots_considered:
+      - "Task Scheduler examples must be Windows-specific and practical."
+      - "Intune/RMM/SCCM guidance should be assumptions and deployment shape, not overclaimed tool-specific support."
+      - "Secrets must be supplied through environment variables, not command-line literals."
+      - "Current-user and elevated all-user scans need different permission wording."
+      - "diagnostics_count includes informational diagnostics, not only failures."
+      - "Unsupported Windows gaps must remain open in windows.md."
+    existing_plan_facts:
+      - "Create docs/deployment-windows.md separate from docs/deployment-macos.md."
+      - "Document Task Scheduler deployment."
+      - "Document Intune/RMM/SCCM-style deployment assumptions."
+      - "Document one-shot incident response runs with explicit --root."
+      - "Document recurring baseline runs."
+      - "Document output to file plus log shipper."
+      - "Document HTTPS output with token/HMAC secrets supplied by environment variables."
+      - "Document required permissions for current-user and all-user scans."
+      - "Document recommended cadence by profile."
+      - "Document Windows verification steps."
+      - "Update windows.md Goal 8 checkboxes and receipt."
+      - "Do not touch README, code, schemas, CI, or release config."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-deployment-documentation"
+    reason: "npx/npm was not available on PATH during goal prep."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: default
+    objective: "Validate the approved Goal 8 plan against current repo docs and choose the exact Worker package."
+    inputs:
+      - "windows.md Goal 8 and known gaps"
+      - "docs/deployment-macos.md"
+      - "docs/transport.md"
+      - "docs/state-model.md"
+      - "Approved proposed plan from the preceding chat turn"
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Preserve the compatibility-layer framing."
+      - "Reject README or user-facing Goal 9 work for this tranche."
+    expected_output:
+      - "approved | revise"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      summary: "Approved one coherent docs-only Worker slice: create docs/deployment-windows.md and update windows.md Goal 8 plus diagnostics_count receipt."
+      allowed_files:
+        - "docs/deployment-windows.md"
+        - "windows.md"
+      verify:
+        - "rg -n \"Task Scheduler|Intune|RMM|SCCM|--all-users|--device-id-env|--http-auth|hmac|diagnostics_count|scan_summary|windows-smoke\" docs/deployment-windows.md windows.md"
+        - "git diff --check -- docs/deployment-windows.md windows.md"
+      stop_if:
+        - "Need README, code, tests, schemas, CI, release config, or generated evidence edits."
+        - "Need unsupported Windows support claims."
+        - "Need real production secrets or raw evidence."
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement the approved Windows deployment documentation slice."
+    allowed_files:
+      - "docs/deployment-windows.md"
+      - "windows.md"
+    verify:
+      - "rg -n \"Task Scheduler|Intune|RMM|SCCM|--all-users|--device-id-env|--http-auth|hmac|diagnostics_count|scan_summary|windows-smoke\" docs/deployment-windows.md windows.md"
+      - "git diff --check -- docs/deployment-windows.md windows.md"
+    stop_if:
+      - "Need to edit README, code, tests, schemas, CI, release config, or generated evidence."
+      - "Need to claim support for unimplemented Windows roots, WSL, native ecosystems, unsupported browser families, redirected known folders, or untested account shapes."
+      - "Need real production URLs, tokens, SIDs, hostnames, usernames, tenant IDs, or raw NDJSON evidence."
+      - "Documentation cannot close a Goal 8 checkbox honestly."
+    receipt:
+      result: done
+      changed_files:
+        - "docs/deployment-windows.md"
+        - "windows.md"
+      commands:
+        - cmd: "rg -n \"Task Scheduler|Intune|RMM|SCCM|--all-users|--device-id-env|--http-auth|hmac|diagnostics_count|scan_summary|windows-smoke\" docs/deployment-windows.md windows.md"
+          status: pass
+        - cmd: "git diff --check -- docs/deployment-windows.md windows.md"
+          status: pass
+        - cmd: "Trailing-whitespace scan over docs/deployment-windows.md and windows.md"
+          status: pass
+      summary: "Added the Windows deployment guide and updated windows.md Goal 8 checkboxes, receipt, and diagnostics_count wording without editing README, code, schemas, CI, release config, or generated evidence."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: default
+    objective: "Audit whether Goal 8 is complete and the changes remain compatibility-layer scoped."
+    inputs:
+      - "T001 receipt"
+      - "T002 receipt"
+      - "Current diff"
+      - "Verification command output"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if unsupported Windows behavior is claimed."
+      - "Reject completion if Goal 8 boxes are checked without matching doc coverage."
+      - "Reject completion if README, code, schemas, CI, or release config changed."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      checklist:
+        - requirement: "Create docs/deployment-windows.md separate from docs/deployment-macos.md."
+          evidence: "docs/deployment-windows.md exists and starts with Windows-specific deployment guidance."
+        - requirement: "Cover all Goal 8 topics."
+          evidence: "Goal 8 checkboxes in windows.md are checked and the new guide contains Task Scheduler, Intune/RMM/SCCM, incident-response, recurring baseline, file/log-shipper, HTTPS env-secret, permission, cadence, and verification sections."
+        - requirement: "Clarify diagnostics_count."
+          evidence: "docs/deployment-windows.md explains diagnostics_count counts informational diagnostics, warnings, and errors; windows.md known gap is checked."
+        - requirement: "Stay compatibility-layer scoped."
+          evidence: "The guide explicitly avoids WSL, Windows-native ecosystem, redirected-folder, and unsupported browser-family claims; windows.md support boundary was updated to point to the new guide while preserving Goal 9."
+        - requirement: "Do not edit README, code, schemas, CI, release config, or generated evidence."
+          evidence: "git status shows only windows.md, docs/deployment-windows.md, and GoalBuddy control files changed."
+        - requirement: "Run doc verification."
+          evidence: "rg coverage check passed; git diff --check passed; trailing-whitespace scan passed."
+      summary: "Goal 8 is complete for this tranche. The Windows deployment guide and windows.md receipt satisfy the oracle without broadening support claims."
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T002
+    commands:
+      - "rg -n \"Task Scheduler|Intune|RMM|SCCM|--all-users|--device-id-env|--http-auth|hmac|diagnostics_count|scan_summary|windows-smoke\" docs/deployment-windows.md windows.md"
+      - "git diff --check -- docs/deployment-windows.md windows.md"
+      - "Trailing-whitespace scan over docs/deployment-windows.md and windows.md"
