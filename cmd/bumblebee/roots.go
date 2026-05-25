@@ -309,6 +309,13 @@ func systemRoots() []scanner.Root {
 			}
 		}
 		return roots
+	case "windows":
+		if programFiles := strings.TrimSpace(os.Getenv("ProgramFiles")); programFiles != "" {
+			return []scanner.Root{
+				{Path: filepath.Join(programFiles, "PowerShell", "Modules"), Kind: model.RootKindGlobalPackage},
+				{Path: filepath.Join(programFiles, "WindowsPowerShell", "Modules"), Kind: model.RootKindGlobalPackage},
+			}
+		}
 	}
 	return nil
 }

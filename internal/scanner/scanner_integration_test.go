@@ -93,6 +93,12 @@ PLATFORMS
   }
 }`)
 
+	// PowerShell module manifest
+	writeFile(t, filepath.Join(root, "p-powershell", "Pester.psd1"), `@{
+  RootModule = 'Pester.psm1'
+  ModuleVersion = '5.7.1'
+}`)
+
 	// MCP config
 	writeFile(t, filepath.Join(root, "p-mcp", "mcp.json"), `{
   "mcpServers": {
@@ -199,6 +205,7 @@ PLATFORMS
 		"composer-installed",
 		"nuget-packages-config",
 		"nuget-lockfile",
+		"powershell-module-manifest",
 		"mcp-config",
 		"editor-extension",
 		"browser-extension",
@@ -208,7 +215,7 @@ PLATFORMS
 			t.Errorf("missing source_type %q", st)
 		}
 	}
-	wantEcosystems := []string{"npm", "go", "rubygems", "packagist", "nuget", "mcp", "editor-extension", "browser-extension"}
+	wantEcosystems := []string{"npm", "go", "rubygems", "packagist", "nuget", "powershell-module", "mcp", "editor-extension", "browser-extension"}
 	for _, e := range wantEcosystems {
 		if !gotEcosystem[e] {
 			t.Errorf("missing ecosystem %q", e)
@@ -225,6 +232,7 @@ PLATFORMS
 		"nuget:newtonsoft.json",
 		"nuget:serilog",
 		"nuget:serilog.sinks.console",
+		"powershell-module:pester",
 		"mcp:@modelcontextprotocol/server-github",
 		"mcp:@example/gemini-search",
 		"editor-extension:ms-python.python",

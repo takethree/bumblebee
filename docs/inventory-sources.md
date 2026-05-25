@@ -8,10 +8,10 @@ by recent supply-chain incidents — see the [Why these ecosystems](#why-these-e
 section at the bottom for the reporting that informed it.
 
 The `ecosystem` field on every record matches OSV ecosystem identifiers
-where one exists (`npm`, `pypi`, `go`, `rubygems`, `packagist`, ...). `mcp`
-and `editor-extension` are project-local values for execution surfaces that
-do not map cleanly to a package registry; both are emitted without resolved
-package versions.
+where one exists (`npm`, `pypi`, `go`, `rubygems`, `packagist`, `nuget`,
+...). `mcp`, `powershell-module`, and the extension ecosystems are
+project-local values for execution surfaces that do not map cleanly to an OSV
+package registry.
 
 ## `ecosystem` vs source toolchain
 
@@ -19,9 +19,9 @@ pnpm, Yarn, and Bun lockfiles all install packages from the npm
 registry, so their records emit `ecosystem=npm`. The specific manager
 and source file are preserved on each record via `package_manager`
 (`npm` / `pnpm` / `yarn` / `bun`) and `source_type` (`pnpm-lockfile`,
-`yarn-lockfile`, `bun-lockfile`, ...). `--ecosystem` accepts the
-OSV-aligned values above only; `--ecosystem npm` covers all four
-package managers.
+`yarn-lockfile`, `bun-lockfile`, ...). `--ecosystem` accepts the emitted
+ecosystem values listed by `bumblebee scan --help`; `--ecosystem npm` covers
+all four JavaScript package managers.
 
 ## Profile-to-source mapping
 
@@ -54,12 +54,24 @@ across real local profile directories under `C:\Users`; it does not add bare
 home directories and cannot be combined with explicit `--root` entries or
 `--profile deep`.
 
+Windows `baseline` also includes current-user and all-users PowerShell module
+roots when those directories exist:
+
+- `%USERPROFILE%\Documents\PowerShell\Modules`
+- `%USERPROFILE%\Documents\WindowsPowerShell\Modules`
+- `%ProgramFiles%\PowerShell\Modules`
+- `%ProgramFiles%\WindowsPowerShell\Modules`
+
+These are literal compatibility-layer candidates. Redirected Documents,
+OneDrive-known-folder resolution, custom `PSModulePath` registry entries, and
+Gallery/API discovery are not claimed.
+
 Windows default roots do not currently claim user npm/global, Python,
 pipx/virtualenv, Ruby/Bundler, Composer, Brave, Chromium, Vivaldi, LibreWolf,
-Waterfox, WSL, redirected known folders, PowerShell modules, Chocolatey,
-Scoop, winget/MSIX/AppX, or Visual Studio extensions. NuGet project/deep
-metadata files are parsed when they appear under operator-supplied roots, but
-NuGet global package-cache baseline roots are not claimed.
+Waterfox, WSL, redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX,
+or Visual Studio extensions. NuGet project/deep metadata files are parsed when
+they appear under operator-supplied roots, but NuGet global package-cache
+baseline roots are not claimed.
 
 ## npm
 
@@ -288,6 +300,30 @@ References:
 
 - NuGet `packages.config`: <https://learn.microsoft.com/en-us/nuget/reference/packages-config>
 - NuGet lock files: <https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#locking-dependencies>
+
+## PowerShell modules
+
+Files read:
+
+- PowerShell module manifests (`.psd1`). Each manifest whose top-level
+  `ModuleVersion` is a constant scalar emits one high-confidence record.
+
+Captured fields: `package_name` is the manifest filename without `.psd1`,
+`normalized_name` is lowercased, `version` is the top-level `ModuleVersion`,
+`package_manager=powershell`, and
+`source_type=powershell-module-manifest`.
+
+The parser reads manifest text directly and extracts only top-level constant
+scalar assignments. It does not execute PowerShell, import modules, evaluate
+expressions, run `Test-ModuleManifest`, call PowerShellGet or PSResourceGet,
+query PowerShell Gallery, read the registry, or expand custom `PSModulePath`
+entries. Manifests with missing or expression-derived `ModuleVersion` are not
+emitted rather than inventing a version.
+
+References:
+
+- PowerShell module manifests: <https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_module_manifests>
+- PowerShell module paths: <https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath>
 
 ## MCP server configs
 
@@ -599,7 +635,6 @@ strong installed-state correlation tooling today.
 
 - Cargo (`Cargo.lock`).
 - Maven / Gradle (`pom.xml`, lockfiles).
-- PowerShell modules.
 - Chocolatey packages.
 - Scoop packages.
 - winget/MSIX/AppX inventory.

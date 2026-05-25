@@ -41,6 +41,7 @@ const (
 	EcosystemRubyGems         = "rubygems"
 	EcosystemPackagist        = "packagist"
 	EcosystemNuGet            = "nuget"
+	EcosystemPowerShellModule = "powershell-module"
 	EcosystemMCP              = "mcp"
 	EcosystemEditorExtension  = "editor-extension"
 	EcosystemBrowserExtension = "browser-extension"
@@ -53,6 +54,7 @@ var supportedEcosystems = map[string]struct{}{
 	EcosystemRubyGems:         {},
 	EcosystemPackagist:        {},
 	EcosystemNuGet:            {},
+	EcosystemPowerShellModule: {},
 	EcosystemMCP:              {},
 	EcosystemEditorExtension:  {},
 	EcosystemBrowserExtension: {},
@@ -65,6 +67,7 @@ var supportedEcosystemOrder = []string{
 	EcosystemRubyGems,
 	EcosystemPackagist,
 	EcosystemNuGet,
+	EcosystemPowerShellModule,
 	EcosystemMCP,
 	EcosystemEditorExtension,
 	EcosystemBrowserExtension,

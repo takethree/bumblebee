@@ -16,9 +16,15 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 	setTestHome(t, home)
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
+	programFiles := filepath.Join(t.TempDir(), "Program Files")
 	t.Setenv("APPDATA", appData)
 	t.Setenv("LOCALAPPDATA", localAppData)
+	t.Setenv("ProgramFiles", programFiles)
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
+	psUserModules := filepath.Join(home, "Documents", "PowerShell", "Modules")
+	winPsUserModules := filepath.Join(home, "Documents", "WindowsPowerShell", "Modules")
+	psAllUsersModules := filepath.Join(programFiles, "PowerShell", "Modules")
+	winPsAllUsersModules := filepath.Join(programFiles, "WindowsPowerShell", "Modules")
 	chromeDefaultExt := filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Extensions")
 	chromeProfile1Ext := filepath.Join(localAppData, "Google", "Chrome", "User Data", "Profile 1", "Extensions")
 	edgeDefaultExt := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Extensions")
@@ -34,13 +40,17 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 		filepath.Join(home, ".windsurf", "extensions"):        model.RootKindEditorExtension,
 		filepath.Join(home, ".windsurf-server", "extensions"): model.RootKindEditorExtension,
 		filepath.Join(home, ".vscodium", "extensions"):        model.RootKindEditorExtension,
-		filepath.Join(appData, "Claude"):                      model.RootKindMCPConfig,
-		msixClaude:                                            model.RootKindMCPConfig,
-		chromeDefaultExt:                                      model.RootKindBrowserExtension,
-		chromeProfile1Ext:                                     model.RootKindBrowserExtension,
-		edgeDefaultExt:                                        model.RootKindBrowserExtension,
-		edgeProfile1Ext:                                       model.RootKindBrowserExtension,
-		firefoxProfiles:                                       model.RootKindBrowserExtension,
+		psUserModules:                    model.RootKindUserPackage,
+		winPsUserModules:                 model.RootKindUserPackage,
+		psAllUsersModules:                model.RootKindGlobalPackage,
+		winPsAllUsersModules:             model.RootKindGlobalPackage,
+		filepath.Join(appData, "Claude"): model.RootKindMCPConfig,
+		msixClaude:                       model.RootKindMCPConfig,
+		chromeDefaultExt:                 model.RootKindBrowserExtension,
+		chromeProfile1Ext:                model.RootKindBrowserExtension,
+		edgeDefaultExt:                   model.RootKindBrowserExtension,
+		edgeProfile1Ext:                  model.RootKindBrowserExtension,
+		firefoxProfiles:                  model.RootKindBrowserExtension,
 	}
 	for p := range want {
 		if err := os.MkdirAll(p, 0o755); err != nil {
@@ -73,8 +83,10 @@ func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 	setTestHome(t, home)
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
+	programFiles := filepath.Join(t.TempDir(), "Program Files")
 	t.Setenv("APPDATA", appData)
 	t.Setenv("LOCALAPPDATA", localAppData)
+	t.Setenv("ProgramFiles", programFiles)
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
 	if err := os.MkdirAll(filepath.Join(home, "go"), 0o755); err != nil {
 		t.Fatal(err)
@@ -89,6 +101,10 @@ func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 		filepath.Join(home, ".cursor", "extensions"),
 		filepath.Join(home, ".windsurf", "extensions"),
 		filepath.Join(home, ".vscodium", "extensions"),
+		filepath.Join(home, "Documents", "PowerShell", "Modules"),
+		filepath.Join(home, "Documents", "WindowsPowerShell", "Modules"),
+		filepath.Join(programFiles, "PowerShell", "Modules"),
+		filepath.Join(programFiles, "WindowsPowerShell", "Modules"),
 		filepath.Join(appData, "Claude"),
 		msixClaude,
 		filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Extensions"),
@@ -240,6 +256,8 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 		local := filepath.Join(h, "AppData", "Local")
 		for _, p := range []string{
 			filepath.Join(h, "go"),
+			filepath.Join(h, "Documents", "PowerShell", "Modules"),
+			filepath.Join(h, "Documents", "WindowsPowerShell", "Modules"),
 			filepath.Join(h, ".vscode", "extensions"),
 			filepath.Join(roaming, "Claude"),
 			filepath.Join(local, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude"),
@@ -263,9 +281,11 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 		roaming := filepath.Join(h, "AppData", "Roaming")
 		local := filepath.Join(h, "AppData", "Local")
 		want := map[string]string{
-			filepath.Join(h, "go"):                    model.RootKindUserPackage,
-			filepath.Join(h, ".vscode", "extensions"): model.RootKindEditorExtension,
-			filepath.Join(roaming, "Claude"):          model.RootKindMCPConfig,
+			filepath.Join(h, "go"):                                                                      model.RootKindUserPackage,
+			filepath.Join(h, "Documents", "PowerShell", "Modules"):                                      model.RootKindUserPackage,
+			filepath.Join(h, "Documents", "WindowsPowerShell", "Modules"):                               model.RootKindUserPackage,
+			filepath.Join(h, ".vscode", "extensions"):                                                   model.RootKindEditorExtension,
+			filepath.Join(roaming, "Claude"):                                                            model.RootKindMCPConfig,
 			filepath.Join(local, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude"): model.RootKindMCPConfig,
 			filepath.Join(local, "Google", "Chrome", "User Data", "Default", "Extensions"):              model.RootKindBrowserExtension,
 			filepath.Join(local, "Microsoft", "Edge", "User Data", "Profile 1", "Extensions"):           model.RootKindBrowserExtension,
@@ -339,14 +359,20 @@ func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 	setTestHome(t, home)
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
+	programFiles := filepath.Join(t.TempDir(), "Program Files")
 	t.Setenv("APPDATA", appData)
 	t.Setenv("LOCALAPPDATA", localAppData)
+	t.Setenv("ProgramFiles", programFiles)
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
+	psUserModules := filepath.Join(home, "Documents", "PowerShell", "Modules")
+	psAllUsersModules := filepath.Join(programFiles, "PowerShell", "Modules")
 	chromeDefaultExt := filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Extensions")
 	edgeDefaultExt := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Extensions")
 	firefoxProfiles := filepath.Join(appData, "Mozilla", "Firefox", "Profiles")
 	want := map[string]string{
 		filepath.Join(home, "go"):        model.RootKindUserPackage,
+		psUserModules:                    model.RootKindUserPackage,
+		psAllUsersModules:                model.RootKindGlobalPackage,
 		filepath.Join(appData, "Claude"): model.RootKindMCPConfig,
 		msixClaude:                       model.RootKindMCPConfig,
 		chromeDefaultExt:                 model.RootKindBrowserExtension,

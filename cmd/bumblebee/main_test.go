@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -654,13 +655,28 @@ func TestNormalizeProfileRejectsUnknown(t *testing.T) {
 }
 
 func TestParseEcosystemFilter(t *testing.T) {
-	filter, err := parseEcosystemFilter([]string{"go,npm", "browser-extension,nuget"})
+	filter, err := parseEcosystemFilter([]string{"go,npm", "browser-extension,nuget,powershell-module"})
 	if err != nil {
 		t.Fatalf("parseEcosystemFilter: %v", err)
 	}
-	for _, ecosystem := range []string{model.EcosystemGo, model.EcosystemNPM, model.EcosystemBrowserExtension, model.EcosystemNuGet} {
+	for _, ecosystem := range []string{model.EcosystemGo, model.EcosystemNPM, model.EcosystemBrowserExtension, model.EcosystemNuGet, model.EcosystemPowerShellModule} {
 		if !filter[ecosystem] {
 			t.Fatalf("missing ecosystem %q from filter %v", ecosystem, filter)
+		}
+	}
+}
+
+func TestScanHelpListsSupportedEcosystems(t *testing.T) {
+	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
+	var o scanOpts
+	registerScanFlags(fs, &o)
+	ecosystemFlag := fs.Lookup("ecosystem")
+	if ecosystemFlag == nil {
+		t.Fatal("scan flag --ecosystem was not registered")
+	}
+	for _, ecosystem := range model.SupportedEcosystems() {
+		if !strings.Contains(ecosystemFlag.Usage, ecosystem) {
+			t.Errorf("--ecosystem help missing %q: %s", ecosystem, ecosystemFlag.Usage)
 		}
 	}
 }

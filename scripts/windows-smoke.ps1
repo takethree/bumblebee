@@ -36,6 +36,9 @@ $httpReceiverResult = Join-Path $EvidenceRoot "http-receiver-result.json"
 $nugetFixtureRoot = Join-Path $EvidenceRoot "nuget fixture project"
 $nugetScanOut = Join-Path $EvidenceRoot "nuget-project.ndjson"
 $nugetScanErr = Join-Path $EvidenceRoot "nuget-project.stderr.txt"
+$powershellFixtureRoot = Join-Path $EvidenceRoot "PowerShell fixture modules"
+$powershellScanOut = Join-Path $EvidenceRoot "powershell-modules.ndjson"
+$powershellScanErr = Join-Path $EvidenceRoot "powershell-modules.stderr.txt"
 
 function ConvertTo-WindowsCommandLineArgument {
     param([AllowNull()][string]$Argument)
@@ -225,6 +228,31 @@ function New-SmokeNuGetFixture {
 }
 '@
     [System.IO.File]::WriteAllText($lockfile, $lockfileBody, [System.Text.UTF8Encoding]::new($false))
+}
+
+function New-SmokePowerShellFixture {
+    param([Parameter(Mandatory = $true)][string]$Root)
+
+    $pesterRoot = Join-Path $Root "Pester\5.7.1"
+    New-Item -ItemType Directory -Force -Path $pesterRoot | Out-Null
+    $pesterManifest = Join-Path $pesterRoot "Pester.psd1"
+    $pesterBody = @'
+@{
+  RootModule = 'Pester.psm1'
+  ModuleVersion = '5.7.1'
+  GUID = 'a699dea5-2c73-4616-a270-1f7abb777e71'
+  Author = 'PowerShell Team'
+}
+'@
+    [System.IO.File]::WriteAllText($pesterManifest, $pesterBody, [System.Text.UTF8Encoding]::new($false))
+
+    $missingRoot = Join-Path $Root "NoVersion"
+    New-Item -ItemType Directory -Force -Path $missingRoot | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $missingRoot "NoVersion.psd1"), "@{ RootModule = 'NoVersion.psm1' }", [System.Text.UTF8Encoding]::new($false))
+
+    $expressionRoot = Join-Path $Root "ExpressionVersion"
+    New-Item -ItemType Directory -Force -Path $expressionRoot | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $expressionRoot "ExpressionVersion.psd1"), "@{ ModuleVersion = (Get-Date) }", [System.Text.UTF8Encoding]::new($false))
 }
 
 function Get-FreeTcpPort {
@@ -481,6 +509,17 @@ if ($code -eq 0) {
     ) $nugetScanOut $nugetScanErr
     Add-CommandResult $commands "scan_project_nuget" $nugetScanCode
     if ($nugetScanCode -ne 0) { $failures.Add("project NuGet scan failed") }
+
+    New-SmokePowerShellFixture $powershellFixtureRoot
+    $powershellScanCode = Invoke-Captured $exePath @(
+        "scan",
+        "--profile", "project",
+        "--root", $powershellFixtureRoot,
+        "--ecosystem", "powershell-module",
+        "--max-duration", $duration
+    ) $powershellScanOut $powershellScanErr
+    Add-CommandResult $commands "scan_project_powershell" $powershellScanCode
+    if ($powershellScanCode -ne 0) { $failures.Add("project PowerShell module scan failed") }
 }
 
 $roots = @()
@@ -710,6 +749,81 @@ if ($commands.Contains("scan_project_nuget") -and $commands["scan_project_nuget"
     }
 }
 
+$powershellRecords = Read-JsonLines $powershellScanOut
+$powershellRecordTypeCounts = [ordered]@{}
+$powershellSourceTypeCounts = [ordered]@{}
+$powershellSummary = $null
+$powershellPackages = New-Object System.Collections.Generic.List[object]
+foreach ($record in $powershellRecords) {
+    $recordType = [string]$record.record_type
+    if ([string]::IsNullOrWhiteSpace($recordType)) {
+        continue
+    }
+    if (-not $powershellRecordTypeCounts.Contains($recordType)) {
+        $powershellRecordTypeCounts[$recordType] = 0
+    }
+    $powershellRecordTypeCounts[$recordType]++
+    if ($recordType -eq "package") {
+        $powershellPackages.Add($record)
+        $sourceType = [string]$record.source_type
+        if (-not [string]::IsNullOrWhiteSpace($sourceType)) {
+            if (-not $powershellSourceTypeCounts.Contains($sourceType)) {
+                $powershellSourceTypeCounts[$sourceType] = 0
+            }
+            $powershellSourceTypeCounts[$sourceType]++
+        }
+    }
+    if ($recordType -eq "scan_summary") {
+        $powershellSummary = $record
+    }
+}
+
+$powershellRequiredFields = @("ecosystem", "package_name", "normalized_name", "version", "package_manager", "source_type", "source_file", "project_path", "root_kind", "confidence")
+$powershellMissingRequiredFields = [ordered]@{}
+foreach ($field in $powershellRequiredFields) {
+    $missing = @($powershellPackages | Where-Object { $null -eq (Get-JsonProperty $_ $field) -or [string]::IsNullOrWhiteSpace([string](Get-JsonProperty $_ $field)) }).Count
+    $powershellMissingRequiredFields[$field] = $missing
+}
+$powershellProjectRootCount = @($powershellPackages | Where-Object { (Get-JsonProperty $_ "root_kind") -eq "project_root" }).Count
+$powershellPesterEmitted = @($powershellPackages | Where-Object {
+    (Get-JsonProperty $_ "package_name") -eq "Pester" -and
+    (Get-JsonProperty $_ "normalized_name") -eq "pester" -and
+    (Get-JsonProperty $_ "version") -eq "5.7.1" -and
+    (Get-JsonProperty $_ "ecosystem") -eq "powershell-module" -and
+    (Get-JsonProperty $_ "package_manager") -eq "powershell" -and
+    (Get-JsonProperty $_ "source_type") -eq "powershell-module-manifest"
+}).Count -eq 1
+$powershellNoVersionEmitted = @($powershellPackages | Where-Object { (Get-JsonProperty $_ "package_name") -eq "NoVersion" }).Count -gt 0
+$powershellExpressionVersionEmitted = @($powershellPackages | Where-Object { (Get-JsonProperty $_ "package_name") -eq "ExpressionVersion" }).Count -gt 0
+
+if ($commands.Contains("scan_project_powershell") -and $commands["scan_project_powershell"].exit_code -eq 0) {
+    if ($powershellPackages.Count -ne 1) {
+        $failures.Add("PowerShell module smoke emitted $($powershellPackages.Count) package records, want 1")
+    }
+    if ($null -eq $powershellSummary) {
+        $failures.Add("PowerShell module smoke scan_summary was missing")
+    } elseif ($powershellSummary.status -ne "complete") {
+        $failures.Add("PowerShell module smoke scan_summary status was not complete")
+    }
+    foreach ($field in $powershellRequiredFields) {
+        if ($powershellMissingRequiredFields[$field] -ne 0) {
+            $failures.Add("PowerShell module smoke missing required field $field")
+        }
+    }
+    if (-not $powershellSourceTypeCounts.Contains("powershell-module-manifest") -or $powershellSourceTypeCounts["powershell-module-manifest"] -ne 1) {
+        $failures.Add("PowerShell module smoke did not emit 1 manifest record")
+    }
+    if ($powershellProjectRootCount -ne $powershellPackages.Count) {
+        $failures.Add("PowerShell module smoke did not stamp all packages as project_root")
+    }
+    if (-not $powershellPesterEmitted) {
+        $failures.Add("PowerShell module smoke did not emit the expected Pester manifest record")
+    }
+    if ($powershellNoVersionEmitted -or $powershellExpressionVersionEmitted) {
+        $failures.Add("PowerShell module smoke emitted an expected-skipped entry")
+    }
+}
+
 $redacted = [ordered]@{
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
     evidence_dir = $EvidenceRoot
@@ -784,6 +898,19 @@ $redacted = [ordered]@{
         skipped_project_reference_emitted = $nugetProjectReferenceEmitted
         skipped_missing_version_emitted = $nugetMissingVersionEmitted
         skipped_missing_resolved_emitted = $nugetMissingResolvedEmitted
+    }
+    powershell_module_project_scan = [ordered]@{
+        record_type_counts = $powershellRecordTypeCounts
+        source_type_counts = $powershellSourceTypeCounts
+        package_records = $powershellPackages.Count
+        summary_present = $null -ne $powershellSummary
+        summary_status = Get-JsonProperty $powershellSummary "status"
+        summary_profile = Get-JsonProperty $powershellSummary "profile"
+        project_root_count = $powershellProjectRootCount
+        missing_required_fields = $powershellMissingRequiredFields
+        expected_pester_emitted = $powershellPesterEmitted
+        skipped_missing_version_emitted = $powershellNoVersionEmitted
+        skipped_expression_version_emitted = $powershellExpressionVersionEmitted
     }
     failures = @($failures)
 }

@@ -262,7 +262,7 @@ implemented or tested.
 - [x] Decide whether Cargo/Maven/Gradle should be handled as cross-platform follow-ups rather than Windows-specific work.
 - [x] Implement NuGet project/deep parser support for `packages.config` and `packages.lock.json`.
 - [ ] Revisit NuGet global package-cache baseline roots only after project/deep metadata support is implemented and output volume is understood.
-- [ ] Design PowerShell module manifest support, including `.psd1` parsing and the emitted ecosystem name, before implementation.
+- [x] Design PowerShell module manifest support, including `.psd1` parsing and the emitted ecosystem name, before implementation.
 - [x] Keep unsupported and deferred ecosystems explicitly documented.
 
 Why: Windows support can ship without Windows-native ecosystems, but full
@@ -278,10 +278,10 @@ Decision from 2026-05-25:
   or other NuGet global package-cache baseline roots in the first slice,
   because cache inventory has different volume and installed-state semantics
   than project metadata.
-- PowerShell modules are in scope, but second. The next decision before
-  implementation is how to parse module manifests (`.psd1`) safely and what
-  emitted ecosystem name downstream consumers should receive. Do not execute
-  PowerShell package-management commands to discover modules.
+- PowerShell modules are in scope as manifest inventory. The design uses
+  file-based `.psd1` parsing and the emitted ecosystem
+  `powershell-module`. Do not execute PowerShell package-management commands
+  to discover modules.
 - Chocolatey and Scoop are deferred for this compatibility-layer phase. They
   are useful endpoint tooling inventory, but they are closer to installed app
   package-manager state than developer project dependency metadata.
@@ -345,6 +345,54 @@ Gap follow-up receipt from 2026-05-25 full validation:
   records leave `direct_dependency` empty, duplicate package/version records
   from `packages.config` and `packages.lock.json` are source-accurate, and
   NuGet global package-cache baseline roots remain deferred.
+
+PowerShell module manifest design from 2026-05-25:
+
+- PowerShell modules use the project-local emitted ecosystem
+  `powershell-module`, with `package_manager=powershell` and
+  `source_type=powershell-module-manifest`. This avoids claiming an OSV or
+  Gallery ecosystem mapping that Bumblebee does not implement.
+- Package identity comes from the `.psd1` manifest filename without extension;
+  `version` comes from the top-level `ModuleVersion` manifest key. Manifests
+  without a constant scalar `ModuleVersion` are skipped instead of emitting
+  weak or invented package records.
+- Parsing must remain text/file based. Do not execute PowerShell, import
+  modules, run `Test-ModuleManifest`, call PowerShellGet/PSResourceGet, query
+  PowerShell Gallery, read the registry, or evaluate PowerShell expressions.
+- Windows baseline roots may include literal current-user and all-users module
+  roots when present:
+  `%USERPROFILE%\Documents\PowerShell\Modules`,
+  `%USERPROFILE%\Documents\WindowsPowerShell\Modules`,
+  `%ProgramFiles%\PowerShell\Modules`, and
+  `%ProgramFiles%\WindowsPowerShell\Modules`.
+- Redirected Documents, OneDrive known-folder resolution, custom
+  `PSModulePath` registry entries, Gallery/API discovery, and command-based
+  installed-module inventory remain out of scope for this compatibility-layer
+  slice.
+
+PowerShell module manifest implementation receipt from 2026-05-25:
+
+- Added the shared `powershell-module` ecosystem and scanner dispatch for
+  `.psd1` manifests without changing the output schema or creating a
+  Windows-only scanner fork.
+- Added a conservative file parser for top-level constant scalar
+  `ModuleVersion` values. The implementation derives package identity from
+  the manifest filename, emits `package_manager=powershell` and
+  `source_type=powershell-module-manifest`, skips manifests without a usable
+  version, and does not evaluate PowerShell expressions.
+- Added literal Windows current-user and all-users PowerShell module roots for
+  baseline scans when those directories exist, while keeping redirected
+  Documents, OneDrive known-folder resolution, custom `PSModulePath`, registry
+  lookup, Gallery/API discovery, and command-based installed-module inventory
+  out of scope.
+- Added parser tests, scanner integration coverage, Windows root tests,
+  model-derived CLI help coverage, and Windows smoke validation for a
+  PowerShell module fixture.
+- Verified with focused Go tests, full `go test ./...`, `go vet ./...`,
+  `CGO_ENABLED=1 go test -race ./...`, `scripts\windows-smoke.ps1`, and
+  `git diff --check`. The smoke emitted one `powershell-module` package from a
+  Pester fixture, produced a complete project `scan_summary`, and skipped
+  missing-version and expression-version manifests.
 
 ## Goal 11: Define WSL Behavior
 
@@ -490,12 +538,13 @@ Known limitations / current support boundary:
   native ecosystems, WSL, redirected known folders, and untested browser
   families outside the support claim.
 - Native ecosystem boundary: Goal 10 now decides the Windows-native ecosystem
-  scope, but only NuGet project/deep parser work is the next implementation
-  slice. PowerShell modules are in scope after a manifest-parser design pass.
-  Chocolatey, Scoop, winget/MSIX/AppX, and Visual Studio extensions are
-  deferred or out of scope for this phase. Cargo, Maven, and Gradle remain
-  cross-platform follow-ups. Unsupported and deferred native ecosystems must
-  stay explicitly documented rather than implied by "Windows support."
+  scope. NuGet project/deep metadata and PowerShell `.psd1` module manifest
+  inventory are the implemented Windows-native slices. NuGet global cache
+  roots remain deferred. Chocolatey, Scoop, winget/MSIX/AppX, and Visual
+  Studio extensions are deferred or out of scope for this phase. Cargo, Maven,
+  and Gradle remain cross-platform follow-ups. Unsupported and deferred native
+  ecosystems must stay explicitly documented rather than implied by "Windows
+  support."
 - WSL boundary: no WSL filesystem coverage is claimed. Until Goal 11 makes an
   explicit decision, WSL users should not assume the Windows binary inventories
   Linux distro package state.

@@ -53,6 +53,12 @@ func classifyPlatformRoot(p string) (string, bool) {
 	case strings.HasSuffix(p, "/AppData/Roaming/Claude") ||
 		strings.HasSuffix(p, "/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Roaming/Claude"):
 		return model.RootKindMCPConfig, true
+	case strings.HasSuffix(p, "/PowerShell/Modules") ||
+		strings.HasSuffix(p, "/WindowsPowerShell/Modules"):
+		if strings.Contains(strings.ToLower(p), "/program files/") {
+			return model.RootKindGlobalPackage, true
+		}
+		return model.RootKindUserPackage, true
 	}
 	return "", false
 }
@@ -115,6 +121,11 @@ func platformLocalAppDataDir(home string) string {
 
 func platformBaselineHomeCandidates(home string) []scanner.Root {
 	var roots []scanner.Root
+	documents := filepath.Join(home, "Documents")
+	roots = append(roots,
+		scanner.Root{Path: filepath.Join(documents, "PowerShell", "Modules"), Kind: model.RootKindUserPackage},
+		scanner.Root{Path: filepath.Join(documents, "WindowsPowerShell", "Modules"), Kind: model.RootKindUserPackage},
+	)
 	appData := platformRoamingAppDataDir(home)
 	if appData != "" {
 		roots = append(roots, scanner.Root{Path: filepath.Join(appData, "Claude"), Kind: model.RootKindMCPConfig})
