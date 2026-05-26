@@ -186,7 +186,7 @@ profiles, and unreadable paths should surface through normal scanner diagnostics
 - [x] Exclude Windows browser profile data that is not needed for extension inventory.
 - [x] Exclude credential and cloud-sync sensitive directories.
 - [x] Account for the current user's redirected `Documents` known-folder path for PowerShell module roots.
-- [ ] Account for broader OneDrive and all-users redirected known folders.
+- [x] Account for broader OneDrive and all-users redirected known folders as an explicit compatibility-layer boundary: do not infer them without per-user execution context or explicit roots.
 - [x] Ensure ACL-denied paths produce diagnostics without failing healthy scans.
 - [x] Add tests for inaccessible paths where Windows permits stable test setup.
 
@@ -209,7 +209,25 @@ Receipt from 2026-05-24 Windows walker safety hardening:
   a structured `debug` diagnostic.
 - Current-user redirected `Documents` support is implemented only for curated
   PowerShell module roots. Broader OneDrive crawling and all-users redirected
-  known-folder discovery remain unchecked.
+  known-folder discovery are now an explicit non-goal for baseline discovery
+  unless Bumblebee is running in that user context or the operator supplies an
+  explicit root.
+
+Goal 6B redirected known-folder boundary receipt:
+
+- [x] Source-validated the boundary against Microsoft PowerShell module path
+  docs and `SHGetKnownFolderPath`: current-user `Documents` can be resolved
+  directly, but resolving another user's known folder requires that user's
+  token.
+- [x] Kept Windows baseline discovery limited to current-user known-folder
+  `Documents`, literal per-home `Documents` under `--all-users`, and
+  all-users `%ProgramFiles%` module roots.
+- [x] Kept broad OneDrive crawling, all-users redirected `Documents` guessing,
+  registry hive loading, token impersonation, custom `PSModulePath`
+  expansion, and command execution out of the support claim.
+- [x] Added regression coverage proving `--all-users` does not infer another
+  user's `OneDrive - <tenant>\Documents\PowerShell\Modules` roots while still
+  including literal per-home `Documents` roots.
 
 ## Goal 7: Normalize Windows Endpoint Identity
 

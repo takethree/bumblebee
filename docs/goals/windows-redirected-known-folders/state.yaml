@@ -1,0 +1,211 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Redirected Known-Folder Boundary Closure"
+  slug: "windows-redirected-known-folders"
+  kind: existing_plan
+  tranche: "Close the Goal 6 redirected-known-folder gap with source-backed policy, docs, tests, and verification."
+  status: done
+  oracle:
+    signal: "Goal 6 records a source-backed redirected-known-folder boundary decision, regression tests prove current-user support and all-users non-discovery behavior, docs explain operator options, and verification passes without broad OneDrive or cross-user known-folder discovery."
+    cadence: "after Scout source validation, after Worker boundary closure, and at final audit"
+    final_proof: "Receipts show source evidence, changed files, passing verification commands, and no unsupported broad discovery."
+  intake:
+    original_request: "$goalbuddy:goal-prep"
+    interpreted_outcome: "Prepare a GoalBuddy board to close the Windows redirected-known-folder gap carefully as a compatibility-layer boundary decision."
+    input_shape: existing_plan
+    audience: "Windows Bumblebee compatibility-layer fork maintainer"
+    authority: approved
+    proof_type: test
+    completion_proof: "Goal 6 is updated, docs and tests match behavior, and verification passes."
+    likely_misfire: "Adding broad OneDrive crawling, all-users redirected Documents guessing, registry hive loading, token impersonation, or PSModulePath expansion."
+    blind_spots_considered:
+      - "Current-user Documents known-folder support already exists for curated PowerShell module roots."
+      - "Windows can resolve another user's known folder only with an appropriate user token."
+      - "OneDrive folder names are not a reliable source for all redirected known-folder roots."
+      - "A real redirected-Documents smoke remains a representative-host proof gate."
+    existing_plan_facts:
+      - "Keep current-user redirected Documents support for curated PowerShell module roots."
+      - "Keep --all-users expansion based on real local profile homes and literal per-home candidates."
+      - "Do not infer other users' redirected Documents paths from OneDrive directory names."
+      - "Do not use registry hive loading, impersonation, per-user token acquisition, broad OneDrive crawling, PSModulePath expansion, or command execution."
+      - "Keep scripts\\windows-smoke.ps1 -RequireRedirectedDocuments as a representative-host proof gate, not required on this non-redirected host."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: "http://goalbuddy.localhost:41737/windows-redirected-known-folders/"
+    command: "goalbuddy board docs/goals/windows-redirected-known-folders"
+    error: "Installed goalbuddy board command did not serve this board; local URL returned HTTP 404. File board remains usable."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Validate the source basis and exact compatibility-layer boundary for redirected Documents, OneDrive, and all-users known-folder behavior."
+    inputs:
+      - "windows.md Goal 6 and PowerShell receipts"
+      - "docs/inventory-sources.md Windows profile mapping"
+      - "Microsoft PowerShell module path documentation"
+      - "Microsoft SHGetKnownFolderPath documentation"
+      - "Existing Windows root and smoke-test behavior"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation or docs."
+      - "Use primary Microsoft sources for support claims."
+      - "Separate supported current-user known-folder behavior from intentionally unsupported all-users redirected discovery."
+    expected_output:
+      - "Supported behavior and deferred behavior."
+      - "Implementation or docs-only recommendation."
+      - "Worker allowed_files, verify commands, and stop_if conditions."
+    receipt:
+      result: done
+      summary: "Source validation supports a boundary closure, not broader discovery. PowerShell documents the current user's Documents folder as the relevant user module location and notes OneDrive can move it, with GetFolderPath('MyDocuments') as the current-user check. SHGetKnownFolderPath supports another user's known folder only when provided that user's token. Current code already resolves the current user's Documents known folder and intentionally varies only literal home prefixes under --all-users."
+      evidence:
+        - "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath"
+        - "https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath"
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+      supported_behavior:
+        - "Current user's resolved Documents known-folder path is used for curated PowerShell module roots."
+        - "--all-users expands literal per-home Documents PowerShell module roots for real local profile directories."
+      deferred_behavior:
+        - "All-users redirected Documents discovery without a per-user execution context."
+        - "Broad OneDrive folder crawling or inferring redirected known folders from OneDrive directory names."
+        - "Registry hive loading, PSModulePath expansion, token impersonation, and command execution."
+      recommendation: "Proceed with docs and regression-test boundary closure only; no production root-discovery change is needed."
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Close the redirected-known-folder boundary in docs and regression tests without adding broad discovery."
+    allowed_files:
+      - "cmd/bumblebee/main_windows_test.go"
+      - "windows.md"
+      - "docs/inventory-sources.md"
+    verify:
+      - "go test ./cmd/bumblebee"
+      - "go test ./internal/walk ./cmd/bumblebee"
+      - "go test ./..."
+      - "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"
+    stop_if:
+      - "Need production files outside allowed_files."
+      - "Source validation shows the current boundary is wrong."
+      - "A correct implementation would require registry hive loading, token impersonation, broad OneDrive crawling, PSModulePath expansion, or command execution."
+      - "Verification fails twice for the same unresolved reason."
+    receipt:
+      result: done
+      changed_files:
+        - "cmd/bumblebee/main_windows_test.go"
+        - "windows.md"
+        - "docs/inventory-sources.md"
+      commands:
+        - cmd: "go test ./cmd/bumblebee"
+          status: pass
+        - cmd: "go test ./internal/walk ./cmd/bumblebee"
+          status: pass
+        - cmd: "go test ./..."
+          status: pass
+        - cmd: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      summary: "Closed the redirected-known-folder gap as a documented compatibility-layer boundary and added regression coverage proving --all-users does not infer another user's OneDrive-redirected Documents PowerShell module roots while literal per-home Documents roots remain supported."
+  - id: T003
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review whether the boundary closure stays within compatibility-layer scope and reduces maintenance risk."
+    inputs:
+      - "T001 receipt"
+      - "T002 receipt"
+      - "Current diff"
+      - "Verification output"
+      - "windows.md Goal 6"
+    constraints:
+      - "Do not implement."
+      - "Reject broad OneDrive discovery, registry probing, token impersonation, or undocumented behavior changes."
+    expected_output:
+      - "approved | changes_required"
+      - "Compatibility-layer compliance assessment"
+      - "Maintenance-risk assessment"
+      - "Required follow-up tasks if not approved"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      summary: "Boundary closure stays within compatibility-layer scope: no production discovery change, no broad OneDrive crawl, no registry probing, no token impersonation, no PSModulePath expansion, and no command execution. The only code change is regression-test coverage."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the redirected-known-folder gap is closed for this tranche."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "windows.md Goal 6"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if docs and tests do not agree on the supported boundary."
+      - "Reject completion if broad discovery or cross-user known-folder guessing was added."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "The tranche is complete: source-backed boundary is recorded, windows.md and inventory docs agree, regression test covers all-users non-discovery for OneDrive-redirected Documents roots, required Go tests passed, Windows smoke passed, and git diff --check passed."
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T002
+    commands:
+      - "go test ./cmd/bumblebee"
+      - "go test ./internal/walk ./cmd/bumblebee"
+      - "go test ./..."
+      - "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"

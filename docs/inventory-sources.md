@@ -76,9 +76,15 @@ roots when those directories exist:
 - `%ProgramFiles%\WindowsPowerShell\Modules`
 
 These are literal compatibility-layer candidates plus the current user's
-Windows known-folder `Documents` path. All-users redirected Documents,
-broader OneDrive discovery, custom `PSModulePath` registry entries, and
-Gallery/API discovery are not claimed.
+Windows known-folder `Documents` path. Microsoft documents that OneDrive can
+move the current user's `Documents` folder, and that callers should resolve
+that current-user location through `MyDocuments`; Bumblebee mirrors that
+boundary without loading other user profiles. All-users redirected Documents,
+broader OneDrive discovery, custom `PSModulePath` registry entries, token
+impersonation, registry hive loading, and Gallery/API discovery are not
+claimed. To inventory a known redirected module location outside this
+baseline, run Bumblebee in that user's context or pass the path explicitly with
+`--root`.
 
 These npm/Python/pipx roots are also literal compatibility-layer candidates.
 Python support is limited to the source-backed user-site and CPython install

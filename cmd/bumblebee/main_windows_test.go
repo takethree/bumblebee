@@ -524,6 +524,10 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 	redirectedWinPsUserModules := filepath.Join(redirectedDocuments, "WindowsPowerShell", "Modules")
 	mustMkdir(redirectedPsUserModules)
 	mustMkdir(redirectedWinPsUserModules)
+	otherUserOneDrivePsModules := filepath.Join(realHomes[1], "OneDrive - Contoso", "Documents", "PowerShell", "Modules")
+	otherUserOneDriveWinPsModules := filepath.Join(realHomes[1], "OneDrive - Contoso", "Documents", "WindowsPowerShell", "Modules")
+	mustMkdir(otherUserOneDrivePsModules)
+	mustMkdir(otherUserOneDriveWinPsModules)
 
 	roots, notes, err := resolveRoots(model.ProfileBaseline, nil, rootsOpts{AllUsers: true})
 	if err != nil {
@@ -583,6 +587,11 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 	}
 	if redirectedPsCount != 1 {
 		t.Errorf("redirected PowerShell module root count = %d, want 1 for current user only (roots=%v)", redirectedPsCount, roots)
+	}
+	for _, p := range []string{otherUserOneDrivePsModules, otherUserOneDriveWinPsModules} {
+		if _, ok := gotPaths[p]; ok {
+			t.Errorf("baseline --all-users discovered other user's OneDrive-redirected Documents root %q; only literal per-home Documents roots are supported", p)
+		}
 	}
 	for _, name := range []string{"Public", "Default", "Default User", "All Users"} {
 		bad := filepath.Join(usersDir, name)
