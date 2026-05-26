@@ -43,9 +43,11 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
 	programFiles := filepath.Join(t.TempDir(), "Program Files")
+	programFilesX86 := filepath.Join(t.TempDir(), "Program Files (x86)")
 	t.Setenv("APPDATA", appData)
 	t.Setenv("LOCALAPPDATA", localAppData)
 	t.Setenv("ProgramFiles", programFiles)
+	t.Setenv("ProgramFiles(x86)", programFilesX86)
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
 	psUserModules := filepath.Join(home, "Documents", "PowerShell", "Modules")
 	winPsUserModules := filepath.Join(home, "Documents", "WindowsPowerShell", "Modules")
@@ -55,6 +57,10 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 	winPsAllUsersModules := filepath.Join(programFiles, "WindowsPowerShell", "Modules")
 	npmGlobalModules := filepath.Join(appData, "npm", "node_modules")
 	pythonUserSite := filepath.Join(appData, "Python", "Python311", "site-packages")
+	pythonInstallUserSite := filepath.Join(localAppData, "Programs", "Python", "Python314", "Lib", "site-packages")
+	pythonInstallGlobalSite := filepath.Join(programFiles, "Python 3.14", "Lib", "site-packages")
+	pythonInstallGlobalX86Site := filepath.Join(programFilesX86, "Python 3.14", "Lib", "site-packages")
+	customPythonPrefixSite := filepath.Join(t.TempDir(), "Python314", "Lib", "site-packages")
 	pipxHomeVenvs := filepath.Join(home, "pipx", "venvs")
 	pipxLocalAppDataVenvs := filepath.Join(localAppData, "pipx", "venvs")
 	pipxLegacyVenvs := filepath.Join(home, ".local", "pipx", "venvs")
@@ -90,6 +96,9 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 		winPsAllUsersModules:             model.RootKindGlobalPackage,
 		npmGlobalModules:                 model.RootKindUserPackage,
 		pythonUserSite:                   model.RootKindUserPackage,
+		pythonInstallUserSite:            model.RootKindUserPackage,
+		pythonInstallGlobalSite:          model.RootKindGlobalPackage,
+		pythonInstallGlobalX86Site:       model.RootKindGlobalPackage,
 		pipxHomeVenvs:                    model.RootKindUserPackage,
 		pipxLocalAppDataVenvs:            model.RootKindUserPackage,
 		pipxLegacyVenvs:                  model.RootKindUserPackage,
@@ -115,6 +124,9 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if err := os.MkdirAll(customPythonPrefixSite, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	roots, _, err := resolveRoots(model.ProfileBaseline, nil, rootsOpts{})
 	if err != nil {
@@ -133,6 +145,9 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 		if gotKind != kind {
 			t.Errorf("baseline root %q kind = %q, want %q", p, gotKind, kind)
 		}
+	}
+	if _, ok := got[customPythonPrefixSite]; ok {
+		t.Errorf("baseline unexpectedly included custom Python prefix root %q", customPythonPrefixSite)
 	}
 }
 
@@ -208,9 +223,11 @@ func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
 	programFiles := filepath.Join(t.TempDir(), "Program Files")
+	programFilesX86 := filepath.Join(t.TempDir(), "Program Files (x86)")
 	t.Setenv("APPDATA", appData)
 	t.Setenv("LOCALAPPDATA", localAppData)
 	t.Setenv("ProgramFiles", programFiles)
+	t.Setenv("ProgramFiles(x86)", programFilesX86)
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
 	if err := os.MkdirAll(filepath.Join(home, "go"), 0o755); err != nil {
 		t.Fatal(err)
@@ -316,6 +333,27 @@ func TestClassifyRootWindowsClaudeMCP(t *testing.T) {
 	for _, p := range cases {
 		if got := classifyRoot(p, model.ProfileBaseline); got != model.RootKindMCPConfig {
 			t.Errorf("classifyRoot(%q) = %q, want %q", p, got, model.RootKindMCPConfig)
+		}
+	}
+}
+
+func TestClassifyRootWindowsPythonInstallSites(t *testing.T) {
+	userCases := []string{
+		`C:\Users\alice\AppData\Local\Programs\Python\Python314\Lib\site-packages`,
+		`C:\Users\alice\AppData\Local\Programs\Python\Python314-64\Lib\site-packages`,
+	}
+	for _, p := range userCases {
+		if got := classifyRoot(p, model.ProfileBaseline); got != model.RootKindUserPackage {
+			t.Errorf("classifyRoot(%q) = %q, want %q", p, got, model.RootKindUserPackage)
+		}
+	}
+	globalCases := []string{
+		`C:\Program Files\Python 3.14\Lib\site-packages`,
+		`C:\Program Files (x86)\Python 3.14\Lib\site-packages`,
+	}
+	for _, p := range globalCases {
+		if got := classifyRoot(p, model.ProfileBaseline); got != model.RootKindGlobalPackage {
+			t.Errorf("classifyRoot(%q) = %q, want %q", p, got, model.RootKindGlobalPackage)
 		}
 	}
 }
@@ -462,6 +500,7 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 			filepath.Join(h, "Documents", "WindowsPowerShell", "Modules"),
 			filepath.Join(roaming, "npm", "node_modules"),
 			filepath.Join(roaming, "Python", "Python311", "site-packages"),
+			filepath.Join(local, "Programs", "Python", "Python314", "Lib", "site-packages"),
 			filepath.Join(h, "pipx", "venvs"),
 			filepath.Join(local, "pipx", "venvs"),
 			filepath.Join(h, ".local", "pipx", "venvs"),
@@ -503,6 +542,7 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 			filepath.Join(h, "Documents", "WindowsPowerShell", "Modules"):                                model.RootKindUserPackage,
 			filepath.Join(roaming, "npm", "node_modules"):                                                model.RootKindUserPackage,
 			filepath.Join(roaming, "Python", "Python311", "site-packages"):                               model.RootKindUserPackage,
+			filepath.Join(local, "Programs", "Python", "Python314", "Lib", "site-packages"):              model.RootKindUserPackage,
 			filepath.Join(h, "pipx", "venvs"):                                                            model.RootKindUserPackage,
 			filepath.Join(local, "pipx", "venvs"):                                                        model.RootKindUserPackage,
 			filepath.Join(h, ".local", "pipx", "venvs"):                                                  model.RootKindUserPackage,
@@ -606,15 +646,20 @@ func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 	appData := filepath.Join(t.TempDir(), "Roaming")
 	localAppData := filepath.Join(t.TempDir(), "Local")
 	programFiles := filepath.Join(t.TempDir(), "Program Files")
+	programFilesX86 := filepath.Join(t.TempDir(), "Program Files (x86)")
 	t.Setenv("APPDATA", appData)
 	t.Setenv("LOCALAPPDATA", localAppData)
 	t.Setenv("ProgramFiles", programFiles)
+	t.Setenv("ProgramFiles(x86)", programFilesX86)
 	msixClaude := filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude")
 	psUserModules := filepath.Join(home, "Documents", "PowerShell", "Modules")
 	redirectedPsUserModules := filepath.Join(redirectedDocuments, "PowerShell", "Modules")
 	psAllUsersModules := filepath.Join(programFiles, "PowerShell", "Modules")
 	npmGlobalModules := filepath.Join(appData, "npm", "node_modules")
 	pythonUserSite := filepath.Join(appData, "Python", "Python311", "site-packages")
+	pythonInstallUserSite := filepath.Join(localAppData, "Programs", "Python", "Python314", "Lib", "site-packages")
+	pythonInstallGlobalSite := filepath.Join(programFiles, "Python 3.14", "Lib", "site-packages")
+	pythonInstallGlobalX86Site := filepath.Join(programFilesX86, "Python 3.14", "Lib", "site-packages")
 	pipxHomeVenvs := filepath.Join(home, "pipx", "venvs")
 	pipxLocalAppDataVenvs := filepath.Join(localAppData, "pipx", "venvs")
 	pipxLegacyVenvs := filepath.Join(home, ".local", "pipx", "venvs")
@@ -634,6 +679,9 @@ func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 		psAllUsersModules:                model.RootKindGlobalPackage,
 		npmGlobalModules:                 model.RootKindUserPackage,
 		pythonUserSite:                   model.RootKindUserPackage,
+		pythonInstallUserSite:            model.RootKindUserPackage,
+		pythonInstallGlobalSite:          model.RootKindGlobalPackage,
+		pythonInstallGlobalX86Site:       model.RootKindGlobalPackage,
 		pipxHomeVenvs:                    model.RootKindUserPackage,
 		pipxLocalAppDataVenvs:            model.RootKindUserPackage,
 		pipxLegacyVenvs:                  model.RootKindUserPackage,

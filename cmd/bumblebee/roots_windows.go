@@ -83,6 +83,13 @@ func classifyPlatformRoot(p string) (string, bool) {
 			return model.RootKindGlobalPackage, true
 		}
 		return model.RootKindUserPackage, true
+	case strings.HasSuffix(strings.ToLower(p), "/lib/site-packages") &&
+		strings.Contains(strings.ToLower(p), "/programs/python/python"):
+		return model.RootKindUserPackage, true
+	case strings.HasSuffix(strings.ToLower(p), "/lib/site-packages") &&
+		strings.Contains(strings.ToLower(p), "/program files") &&
+		strings.Contains(strings.ToLower(p), "/python"):
+		return model.RootKindGlobalPackage, true
 	}
 	return "", false
 }
@@ -218,6 +225,9 @@ func platformBaselineHomeCandidates(home string) []scanner.Root {
 			Path: filepath.Join(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude"),
 			Kind: model.RootKindMCPConfig,
 		})
+		for _, p := range globExisting(filepath.Join(localAppData, "Programs", "Python", "Python*", "Lib", "site-packages")) {
+			roots = append(roots, scanner.Root{Path: p, Kind: model.RootKindUserPackage})
+		}
 		roots = append(roots, scanner.Root{Path: filepath.Join(localAppData, "pipx", "venvs"), Kind: model.RootKindUserPackage})
 	}
 	roots = append(roots,

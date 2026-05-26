@@ -465,6 +465,10 @@ function New-SmokeStrictParityRootFixture {
     New-Item -ItemType Directory -Force -Path $pythonRoot | Out-Null
     [System.IO.File]::WriteAllText((Join-Path $pythonRoot "METADATA"), "Metadata-Version: 2.1`nName: SmokePythonRoot`nVersion: 1.0.0`n`n", [System.Text.UTF8Encoding]::new($false))
 
+    $pythonInstallRoot = Join-Path $localAppData "Programs\Python\Python311\Lib\site-packages\SmokePythonInstallRoot-1.1.0.dist-info"
+    New-Item -ItemType Directory -Force -Path $pythonInstallRoot | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $pythonInstallRoot "METADATA"), "Metadata-Version: 2.1`nName: SmokePythonInstallRoot`nVersion: 1.1.0`n`n", [System.Text.UTF8Encoding]::new($false))
+
     $pipxCases = @(
         @{ Root = (Join-Path $FixtureHome "pipx\venvs\smoke-pipx\Lib\site-packages\SmokePipxRoot-2.0.0.dist-info"); Name = "SmokePipxRoot"; Version = "2.0.0" },
         @{ Root = (Join-Path $localAppData "pipx\venvs\smoke-pipx-local\Lib\site-packages\SmokePipxLocalRoot-3.0.0.dist-info"); Name = "SmokePipxLocalRoot"; Version = "3.0.0" },
@@ -1352,6 +1356,7 @@ if (Test-Path $strictParityRootsOut) {
 $strictParityExpectedRoots = [ordered]@{
     npm_global_modules = (Join-Path $strictParityFixtureHome "AppData\Roaming\npm\node_modules")
     python_user_site = (Join-Path $strictParityFixtureHome "AppData\Roaming\Python\Python311\site-packages")
+    python_install_user_site = (Join-Path $strictParityFixtureHome "AppData\Local\Programs\Python\Python311\Lib\site-packages")
     pipx_home_venvs = (Join-Path $strictParityFixtureHome "pipx\venvs")
     pipx_localappdata_venvs = (Join-Path $strictParityFixtureHome "AppData\Local\pipx\venvs")
     pipx_legacy_venvs = (Join-Path $strictParityFixtureHome ".local\pipx\venvs")
@@ -1394,6 +1399,7 @@ foreach ($record in $strictParityRecords) {
 $strictParityExpectedNames = @(
     "smoke-npm-root",
     "SmokePythonRoot",
+    "SmokePythonInstallRoot",
     "SmokePipxRoot",
     "SmokePipxLocalRoot",
     "SmokePipxLegacyRoot"
@@ -1412,8 +1418,8 @@ if ($commands.Contains("roots_strict_parity_fixture") -and $commands["roots_stri
 }
 
 if ($commands.Contains("scan_strict_parity_fixture") -and $commands["scan_strict_parity_fixture"].exit_code -eq 0) {
-    if ($strictParityPackages.Count -ne 5) {
-        $failures.Add("strict-parity scan emitted $($strictParityPackages.Count) package records, want 5")
+    if ($strictParityPackages.Count -ne 6) {
+        $failures.Add("strict-parity scan emitted $($strictParityPackages.Count) package records, want 6")
     }
     if ($null -eq $strictParitySummary) {
         $failures.Add("strict-parity scan_summary was missing")
@@ -1423,8 +1429,8 @@ if ($commands.Contains("scan_strict_parity_fixture") -and $commands["scan_strict
     if (-not $strictParitySourceTypeCounts.Contains("npm-node_modules") -or $strictParitySourceTypeCounts["npm-node_modules"] -ne 1) {
         $failures.Add("strict-parity scan did not emit 1 npm node_modules package record")
     }
-    if (-not $strictParitySourceTypeCounts.Contains("pypi-dist-info") -or $strictParitySourceTypeCounts["pypi-dist-info"] -ne 4) {
-        $failures.Add("strict-parity scan did not emit 4 PyPI dist-info records")
+    if (-not $strictParitySourceTypeCounts.Contains("pypi-dist-info") -or $strictParitySourceTypeCounts["pypi-dist-info"] -ne 5) {
+        $failures.Add("strict-parity scan did not emit 5 PyPI dist-info records")
     }
     foreach ($name in $strictParityExpectedNames) {
         if (-not $strictParityExpectedNamesEmitted[$name]) {

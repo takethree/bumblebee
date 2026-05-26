@@ -47,6 +47,10 @@ macOS/Linux. The tested Windows `baseline` population currently includes:
 - npm global packages under `%APPDATA%\npm\node_modules`.
 - Python user site-packages under
   `%APPDATA%\Python\Python*\site-packages`.
+- Python install-prefix site-packages under
+  `%LOCALAPPDATA%\Programs\Python\Python*\Lib\site-packages`,
+  `%ProgramFiles%\Python*\Lib\site-packages`, and
+  `%ProgramFiles(x86)%\Python*\Lib\site-packages`.
 - pipx venv roots under `%USERPROFILE%\pipx\venvs`,
   `%LOCALAPPDATA%\pipx\venvs`, `%USERPROFILE%\.local\pipx\venvs`, and the
   shared cross-platform `%USERPROFILE%\.local\share\pipx\venvs` candidate.
@@ -77,9 +81,12 @@ broader OneDrive discovery, custom `PSModulePath` registry entries, and
 Gallery/API discovery are not claimed.
 
 These npm/Python/pipx roots are also literal compatibility-layer candidates.
-Custom npm prefixes, Python install discovery outside the `%APPDATA%` user
-site pattern, arbitrary virtualenv discovery, custom `PIPX_HOME` expansion,
-registry reads, and package-manager command execution are not claimed.
+Python support is limited to the source-backed user-site and CPython install
+prefix patterns above. Custom npm prefixes, arbitrary Python prefixes such as
+`C:\Python*`, arbitrary virtualenv discovery, Conda, pyenv-win, Store/MSIX
+internals, custom `PYTHONPATH`/`PYTHONUSERBASE`, custom `PIPX_HOME`
+expansion, registry reads, and package-manager command execution are not
+claimed.
 
 Windows default roots do not currently claim Ruby/Bundler, Composer, WSL,
 all-users redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX, or

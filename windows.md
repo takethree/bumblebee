@@ -89,7 +89,8 @@ package-manager execution.
 - [x] Add `%USERPROFILE%\go`.
 - [x] Add source-backed user npm/global package roots under `%APPDATA%\npm\node_modules`.
 - [x] Add Windows Python user site roots under `%APPDATA%\Python\Python*\site-packages`.
-- [ ] Defer `%LOCALAPPDATA%` and common Python install roots until they are source-validated as a separate compatibility slice.
+- [x] Add source-backed Python install roots under `%LOCALAPPDATA%\Programs\Python\Python*\Lib\site-packages`, `%ProgramFiles%\Python*\Lib\site-packages`, and `%ProgramFiles(x86)%\Python*\Lib\site-packages`.
+- [ ] Defer arbitrary Python prefixes such as `C:\Python*`, Python Install Manager dynamic runtime enumeration, registry-discovered runtimes, Conda, pyenv-win, Store/MSIX internals, custom `PYTHONPATH`, and custom `PYTHONUSERBASE`.
 - [x] Add source-backed pipx venv roots under `%USERPROFILE%\pipx\venvs`, `%LOCALAPPDATA%\pipx\venvs`, and `%USERPROFILE%\.local\pipx\venvs`.
 - [ ] Defer arbitrary virtualenv discovery; project/deep scans already find virtualenv metadata under supplied roots.
 - [ ] Defer Ruby/Bundler user package roots until there is a cross-platform baseline decision.
@@ -725,6 +726,21 @@ Goal 3A strict-parity receipt:
 - [x] Kept `%USERPROFILE%\.local\share\pipx\venvs` in shared baseline handling rather than duplicating it in the Windows hook.
 - [x] Added controlled tests and smoke fixtures that prove npm and PyPI records emit from the new Windows roots.
 - [x] Kept Ruby/Bundler, Composer, custom npm/Python/pipx prefixes, arbitrary virtualenv discovery, registry reads, WSL, and redirected known folders out of the current support claim.
+
+Goal 3B Python install-root receipt:
+
+- [x] Source-validated CPython install-prefix package roots using official
+  Python Windows installer, `sysconfig`, and `site` documentation.
+- [x] Added only existence-filtered `%LOCALAPPDATA%\Programs\Python\Python*\Lib\site-packages`,
+  `%ProgramFiles%\Python*\Lib\site-packages`, and
+  `%ProgramFiles(x86)%\Python*\Lib\site-packages` baseline candidates.
+- [x] Kept arbitrary `C:\Python*` prefixes, Python Install Manager dynamic
+  runtime enumeration, registry-discovered runtimes, Conda, pyenv-win,
+  Store/MSIX internals, custom `PYTHONPATH`, custom `PYTHONUSERBASE`, and
+  arbitrary virtualenv discovery out of the baseline support claim.
+- [x] Verified with Go tests and the Windows smoke strict-parity fixture,
+  including a temporary `%LOCALAPPDATA%\Programs\Python\Python311\Lib\site-packages`
+  PyPI dist-info package that does not touch a real Python install.
 
 ## Goal 13: Keep The Fork Easy To Update
 

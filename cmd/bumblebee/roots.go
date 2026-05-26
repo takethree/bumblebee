@@ -310,12 +310,22 @@ func systemRoots() []scanner.Root {
 		}
 		return roots
 	case "windows":
+		var roots []scanner.Root
 		if programFiles := strings.TrimSpace(os.Getenv("ProgramFiles")); programFiles != "" {
-			return []scanner.Root{
-				{Path: filepath.Join(programFiles, "PowerShell", "Modules"), Kind: model.RootKindGlobalPackage},
-				{Path: filepath.Join(programFiles, "WindowsPowerShell", "Modules"), Kind: model.RootKindGlobalPackage},
+			roots = append(roots,
+				scanner.Root{Path: filepath.Join(programFiles, "PowerShell", "Modules"), Kind: model.RootKindGlobalPackage},
+				scanner.Root{Path: filepath.Join(programFiles, "WindowsPowerShell", "Modules"), Kind: model.RootKindGlobalPackage},
+			)
+			for _, p := range globExisting(filepath.Join(programFiles, "Python*", "Lib", "site-packages")) {
+				roots = append(roots, scanner.Root{Path: p, Kind: model.RootKindGlobalPackage})
 			}
 		}
+		if programFilesX86 := strings.TrimSpace(os.Getenv("ProgramFiles(x86)")); programFilesX86 != "" {
+			for _, p := range globExisting(filepath.Join(programFilesX86, "Python*", "Lib", "site-packages")) {
+				roots = append(roots, scanner.Root{Path: p, Kind: model.RootKindGlobalPackage})
+			}
+		}
+		return roots
 	}
 	return nil
 }
