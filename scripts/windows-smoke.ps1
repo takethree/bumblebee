@@ -193,6 +193,18 @@ function Get-JsonProperty {
     return $prop.Value
 }
 
+function Test-WslLikeRootPath {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return $false
+    }
+    $p = $Path.Replace("/", "\").ToLowerInvariant()
+    return $p.StartsWith('\\wsl$\') -or
+        $p.StartsWith('\\wsl.localhost\') -or
+        $p.Contains('\localstate\rootfs\')
+}
+
 function New-SmokePackageFixture {
     param([Parameter(Mandatory = $true)][string]$Root)
 
@@ -798,6 +810,7 @@ foreach ($group in ($roots | Group-Object Kind | Sort-Object Name)) {
 }
 
 $browserRootCount = @($roots | Where-Object { $_.Kind -eq "browser_extension_root" }).Count
+$wslRootCount = @($roots | Where-Object { Test-WslLikeRootPath $_.Path }).Count
 $bareUserProfileRootCount = 0
 if ($env:USERPROFILE) {
     $bareUserProfileRootCount = @($roots | Where-Object {
@@ -863,6 +876,9 @@ if ($firefoxProfilesExists) {
 
 if ($bareUserProfileRootCount -gt 0) {
     $failures.Add("bare USERPROFILE appeared as a baseline root")
+}
+if ($wslRootCount -gt 0) {
+    $failures.Add("WSL-looking path appeared as a Windows baseline root")
 }
 if ($knownDocumentsPowerShellModulesExists -and -not $knownDocumentsPowerShellModulesListed) {
     $failures.Add("known Documents PowerShell module root exists but was not listed")
@@ -1332,6 +1348,7 @@ $redacted = [ordered]@{
         root_count = @($roots).Count
         kind_counts = $kindCounts
         browser_root_count = $browserRootCount
+        wsl_root_count = $wslRootCount
         bare_userprofile_root_count = $bareUserProfileRootCount
         userprofile_go_smoke_fixture_created = [bool]$userGoSmokeFixtureCreated
         userprofile_go_exists = [bool]$goRootExists

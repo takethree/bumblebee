@@ -463,14 +463,30 @@ Goal 6A smoke gap-fill receipt from 2026-05-25:
 
 ## Goal 11: Define WSL Behavior
 
-- [ ] Decide whether the Windows binary should inspect WSL filesystems.
-- [ ] If not, document that WSL should run the Linux Bumblebee binary inside each distro.
-- [ ] If yes, define how distro paths are discovered.
-- [ ] Avoid claiming WSL coverage from Windows user-profile scanning alone.
-- [ ] Add tests or fixtures only after the behavior is explicitly chosen.
+- [x] Decide whether the Windows binary should inspect WSL filesystems: it should not auto-discover or claim WSL package state.
+- [x] If not, document that WSL should run the Linux Bumblebee binary inside each distro.
+- [x] If yes, define how distro paths are discovered; not applicable because no Windows-side WSL discovery is implemented.
+- [x] Avoid claiming WSL coverage from Windows user-profile scanning alone.
+- [x] Add tests or fixtures only after the behavior is explicitly chosen.
 
 Why: WSL is Linux userland with Linux package/tool layouts. Treating it as
 ordinary Windows filesystem coverage would be misleading.
+
+Receipt from 2026-05-25 Windows WSL boundary:
+
+- Goal 11 uses the Generic Only policy: Windows baseline and `--all-users`
+  defaults do not discover WSL UNC paths, `\\wsl.localhost`, or distro
+  `rootfs` package state.
+- Operator-supplied explicit `--root` paths remain generic explicit roots when
+  Windows can read them. They are not rejected merely for looking WSL-related,
+  but they are not documented as supported WSL inventory.
+- WSL package state should be inventoried by running the Linux Bumblebee binary
+  inside each distro.
+- Added Windows root tests and smoke validation for `wsl_root_count=0` so the
+  compatibility layer does not silently start claiming WSL default roots.
+- Verified with
+  `C:\Users\bbutner\AppData\Local\Temp\bumblebee-windows-smoke\20260525-174834\smoke-summary.redacted.json`:
+  `wsl_root_count=0` and `failures=0`.
 
 ## Goal 12: Validate End To End On Windows
 
@@ -626,9 +642,8 @@ Known limitations / current support boundary:
   and Gradle remain cross-platform follow-ups. Unsupported and deferred native
   ecosystems must stay explicitly documented rather than implied by "Windows
   support."
-- WSL boundary: no WSL filesystem coverage is claimed. Until Goal 11 makes an
-  explicit decision, WSL users should not assume the Windows binary inventories
-  Linux distro package state.
+- WSL boundary: no WSL filesystem coverage is claimed from the Windows binary.
+  Run the Linux Bumblebee binary inside each distro for WSL package inventory.
 - Diagnostics boundary: the Windows deployment guide clarifies that
   `diagnostics_count` includes informational diagnostics, warnings, and errors.
 

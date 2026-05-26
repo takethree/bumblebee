@@ -1,0 +1,227 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Goal 11 WSL Boundary"
+  slug: "windows-wsl-boundary"
+  kind: existing_plan
+  tranche: "Define WSL as a non-discovery boundary for the Windows compatibility layer while preserving generic explicit-root semantics."
+  status: done
+  oracle:
+    signal: "Windows default roots and smoke summaries show zero WSL roots; docs direct WSL users to run the Linux Bumblebee binary inside each distro; no WSL discovery, rejection, schema, parser, profile, root-kind, or CLI semantics are added."
+    cadence: "after Scout evidence mapping, after Worker implementation, and at final audit"
+    final_proof: "Receipts list current wording review, changed docs/tests/smoke, focused tests, full tests, Windows smoke, git diff --check, and final audit with full_outcome_complete=true."
+  intake:
+    original_request: "$goalbuddy:goal-prep for Goal 11: define WSL behavior for the Windows compatibility layer."
+    interpreted_outcome: "Prepare a GoalBuddy board to document and verify that WSL is outside Windows default discovery and should be scanned by the Linux Bumblebee binary inside each distro."
+    input_shape: existing_plan
+    audience: "Maintainer of the TakeThree Windows compatibility fork"
+    authority: approved
+    proof_type: test
+    completion_proof: "Docs, Windows root tests, Windows smoke summary with wsl_root_count=0, go test ./..., and final audit prove the tranche is complete."
+    likely_misfire: "Adding WSL discovery, rejecting explicit roots unnecessarily, scanning WSL UNC/rootfs paths by default, or implying Windows baseline roots cover Linux distro package state."
+    blind_spots_considered:
+      - "Explicit --root semantics should remain generic and operator-controlled."
+      - "WSL UNC paths such as \\\\wsl$ and \\\\wsl.localhost must not appear in default roots."
+      - "Distro rootfs paths under AppData packages must not be discovered as Windows baseline roots."
+      - "Docs already mention WSL but still say behavior is undefined in some places."
+    existing_plan_facts:
+      - "Chosen policy is Generic Only."
+      - "Windows default roots must not include WSL paths."
+      - "Explicit WSL-looking --root paths remain generic explicit roots if Windows can read them, but they are not supported WSL inventory."
+      - "WSL users should run the Linux Bumblebee binary inside each distro."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-wsl-boundary"
+    last_error: "npx goalbuddy board exited without generating .goalbuddy-board; fetch of https://raw.githubusercontent.com/tolibear/goalbuddy/main/extend/catalog.json returned HTTP 404."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: low
+    objective: "Map current WSL wording and root-discovery behavior before edits."
+    inputs:
+      - "docs/goals/windows-wsl-boundary/goal.md"
+      - "windows.md Goal 11 and known limitations"
+      - "README Windows compatibility layer section"
+      - "docs/inventory-sources.md Windows default roots section"
+      - "docs/deployment-windows.md support boundary"
+      - "cmd/bumblebee Windows root tests and root resolution code"
+      - "scripts/windows-smoke.ps1"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation or docs."
+      - "Do not run WSL commands or inspect WSL filesystems."
+    expected_output:
+      - "Current WSL claims and contradictions, if any."
+      - "Exact test/doc/smoke surfaces that need updates."
+      - "Whether the chosen Generic Only policy is compatible with existing explicit-root semantics."
+    receipt:
+      result: done
+      summary: "Existing repo state supports the Generic Only policy. README and inventory docs already exclude WSL package state from Windows support, deployment docs disclaim WSL coverage, and Windows root code has no WSL discovery. The remaining contradictions are wording that says WSL behavior is still undefined and the absence of explicit test/smoke counters for WSL-looking default roots."
+      evidence:
+        - "README.md: Windows section says WSL package state is not currently claimed, but still says behavior is explicitly undefined."
+        - "docs/inventory-sources.md: Windows default roots do not claim WSL and unsupported sources list WSL package state from the Windows binary."
+        - "docs/deployment-windows.md: Windows deployment guide says it does not claim WSL coverage."
+        - "windows.md Goal 11 remains unchecked and known limitations say WSL users should not assume Windows binary inventories Linux distro package state until Goal 11 decides."
+        - "cmd/bumblebee/roots_windows.go contains no wsl.exe, WSL UNC, rootfs, registry, or distro-enumeration discovery logic."
+        - "cmd/bumblebee/roots.go preserves generic explicit --root semantics and does not reject unfamiliar paths except broad home roots for baseline/project."
+      needed_updates:
+        - "Close Goal 11's Generic Only decision in windows.md."
+        - "Replace 'until WSL behavior is explicitly defined' wording with final policy."
+        - "Add Windows root tests asserting default baseline/all-users roots contain no WSL-looking paths."
+        - "Add Windows smoke wsl_root_count and fail if baseline roots include WSL-looking paths."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: medium
+    objective: "Validate the Goal 11 implementation slice and choose allowed files."
+    inputs:
+      - "T001 Scout receipt"
+      - "Goal oracle"
+      - "Chosen Generic Only policy"
+    constraints:
+      - "Do not implement."
+      - "Reject any plan that adds WSL discovery, explicit-root rejection, schema changes, parser changes, or profile semantic changes."
+    expected_output:
+      - "approved | revise"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+    receipt:
+      result: done
+      decision: approved
+      summary: "Approve a single Worker slice that updates WSL policy wording, adds test-only WSL-looking default-root guards, and extends Windows smoke with a redacted WSL root count. This preserves Generic Only explicit-root semantics and does not require production root-discovery changes."
+      exact_worker_objective: "Implement the Goal 11 WSL boundary docs, tests, and smoke receipt coverage without adding WSL discovery or explicit-root rejection."
+      allowed_files:
+        - "windows.md"
+        - "README.md"
+        - "docs/inventory-sources.md"
+        - "docs/deployment-windows.md"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+        - "docs/goals/windows-wsl-boundary/state.yaml"
+      verify:
+        - "go test ./cmd/bumblebee"
+        - "go test ./cmd/bumblebee ./internal/walk ./internal/scanner"
+        - "go test ./..."
+        - "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+        - "git diff --check"
+      stop_if:
+        - "Need files outside allowed_files."
+        - "Need WSL discovery, WSL command execution, registry reads, WSL APIs, distro enumeration, explicit-root rejection, schema changes, parser changes, sink changes, root-kind changes, or profile semantic changes."
+        - "Verification fails twice for the same reason."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement the approved Goal 11 WSL boundary docs, tests, and smoke receipt coverage."
+    allowed_files:
+      - "windows.md"
+      - "README.md"
+      - "docs/inventory-sources.md"
+      - "docs/deployment-windows.md"
+      - "cmd/bumblebee/main_windows_test.go"
+      - "scripts/windows-smoke.ps1"
+      - "docs/goals/windows-wsl-boundary/state.yaml"
+    verify:
+      - "go test ./cmd/bumblebee"
+      - "go test ./cmd/bumblebee ./internal/walk ./internal/scanner"
+      - "go test ./..."
+      - "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Need WSL discovery, WSL command execution, registry reads, WSL APIs, distro enumeration, explicit-root rejection, schema changes, parser changes, sink changes, root-kind changes, or profile semantic changes."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "windows.md"
+        - "README.md"
+        - "docs/inventory-sources.md"
+        - "docs/deployment-windows.md"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+        - "docs/goals/windows-wsl-boundary/state.yaml"
+      commands:
+        - cmd: "PowerShell parser check for scripts\\windows-smoke.ps1"
+          status: pass
+        - cmd: "go test ./cmd/bumblebee"
+          status: pass
+        - cmd: "go test ./cmd/bumblebee ./internal/walk ./internal/scanner"
+          status: pass
+        - cmd: "go test ./..."
+          status: pass
+        - cmd: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      smoke_summary: "C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-windows-smoke\\20260525-174834\\smoke-summary.redacted.json"
+      smoke_wsl_root_count: 0
+      summary: "Implemented the Generic Only WSL boundary. Docs now direct WSL package inventory to the Linux Bumblebee binary inside each distro, windows.md closes Goal 11 with an explicit no-discovery policy, Windows tests prove default baseline/all-users roots do not include WSL-looking paths while explicit WSL-looking --root remains generic, and smoke fails if baseline roots include WSL-looking paths."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether Goal 11 WSL boundary is complete."
+    inputs:
+      - "All task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "Goal oracle"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if docs still say WSL behavior is undefined."
+      - "Reject completion if tests or smoke do not prove Windows default roots have zero WSL roots."
+      - "Reject completion if any required Worker task is still queued or active."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "Goal 11 is complete. The Windows compatibility layer now has a documented and tested WSL boundary: WSL package state is not claimed from the Windows binary, WSL users are directed to run the Linux Bumblebee binary inside each distro, default roots are guarded against WSL-looking paths, and explicit WSL-looking --root paths remain generic operator-supplied roots."
+      evidence:
+        - "windows.md closes all Goal 11 checkboxes and records the Generic Only policy with smoke evidence."
+        - "README.md, docs/inventory-sources.md, and docs/deployment-windows.md direct WSL package inventory to the Linux Bumblebee binary inside each distro."
+        - "cmd/bumblebee/main_windows_test.go proves Windows default baseline/all-users roots do not include WSL-looking paths and explicit WSL-looking --root remains generic project_root behavior."
+        - "scripts/windows-smoke.ps1 records wsl_root_count and fails if any WSL-looking path appears in Windows baseline roots."
+        - "Smoke summary C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-windows-smoke\\20260525-174834\\smoke-summary.redacted.json recorded wsl_root_count=0 and failures=0."
+        - "Verification passed: PowerShell parser check, go test ./cmd/bumblebee, go test ./cmd/bumblebee ./internal/walk ./internal/scanner, go test ./..., Windows smoke, and git diff --check."
+      missing_evidence: []

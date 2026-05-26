@@ -7,8 +7,12 @@ uses.
 
 This document is for the Windows compatibility layer. It describes deployment
 patterns for behavior already implemented and tested. It does not claim WSL
-coverage, Windows-native package ecosystems, redirected known-folder coverage,
-or browser families that are still open in `windows.md`.
+coverage, unsupported Windows-native package ecosystems, all-users redirected
+known-folder coverage, or browser families that are still open in `windows.md`.
+
+For WSL package inventory, deploy or run the Linux Bumblebee binary inside each
+distro. The Windows binary does not discover distro filesystems or treat WSL
+package state as Windows baseline coverage.
 
 Cadence is the runner's choice. The profile only controls what gets walked:
 
@@ -271,8 +275,9 @@ Preview resolved roots before deployment:
 On Windows, the tested baseline support boundary currently includes the Go user
 root, VS Code-family editor extension roots, Windows Claude Desktop MCP config
 roots, Chrome extension roots, Edge extension roots, and Firefox profile roots
-when those locations exist. Unimplemented language roots, additional browser
-families, WSL, and Windows-native ecosystems remain tracked in `windows.md`.
+when those locations exist. WSL package state is intentionally handled by the
+Linux binary inside each distro. Unimplemented language roots, additional
+browser families, and Windows-native ecosystems remain tracked in `windows.md`.
 
 If a profile's defaults pick up nothing on a host, the scan exits with a
 helpful error rather than walking the whole profile directory.

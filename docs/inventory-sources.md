@@ -83,7 +83,8 @@ registry reads, and package-manager command execution are not claimed.
 
 Windows default roots do not currently claim Ruby/Bundler, Composer, WSL,
 all-users redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX, or
-Visual Studio extensions. NuGet project/deep metadata files are parsed when
+Visual Studio extensions. For WSL package inventory, run the Linux Bumblebee
+binary inside each distro. NuGet project/deep metadata files are parsed when
 they appear under operator-supplied roots, but NuGet global package-cache
 baseline roots are not claimed.
 
@@ -655,7 +656,8 @@ strong installed-state correlation tooling today.
 - Scoop packages.
 - winget/MSIX/AppX inventory.
 - Visual Studio extensions.
-- WSL package state from the Windows binary.
+- WSL package state from the Windows binary; run the Linux Bumblebee binary
+  inside each distro instead.
 - Hex (`mix.lock`).
 - Swift PM (`Package.resolved`).
 - Yarn PnP (`.pnp.data.json`); the `yarn.lock` parser still covers PnP

@@ -219,8 +219,8 @@ Not currently claimed on Windows:
 - Windows-native ecosystems beyond project/deep NuGet metadata and PowerShell
   module manifests, such as Chocolatey, Scoop, winget/MSIX/AppX, and Visual
   Studio extensions.
-- WSL package state. Run the Linux Bumblebee binary inside each distro until
-  WSL behavior is explicitly defined.
+- WSL package state from the Windows binary. Run the Linux Bumblebee binary
+  inside each distro for WSL package inventory.
 - All-users redirected known folders and broader OneDrive profile discovery.
 
 ### Windows troubleshooting

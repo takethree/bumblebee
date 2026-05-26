@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/perplexityai/bumblebee/internal/model"
+	"github.com/perplexityai/bumblebee/internal/scanner"
 )
 
 func setTestCurrentUserDocumentsDir(t *testing.T, dir string) {
@@ -16,6 +17,22 @@ func setTestCurrentUserDocumentsDir(t *testing.T, dir string) {
 	old := currentUserDocumentsDir
 	currentUserDocumentsDir = func() string { return dir }
 	t.Cleanup(func() { currentUserDocumentsDir = old })
+}
+
+func testWSLLikePath(p string) bool {
+	p = strings.ToLower(filepath.ToSlash(filepath.Clean(p)))
+	return strings.HasPrefix(p, "//wsl$/") ||
+		strings.HasPrefix(p, "//wsl.localhost/") ||
+		strings.Contains(p, "/localstate/rootfs/")
+}
+
+func assertNoWSLLikeRoots(t *testing.T, roots []scanner.Root) {
+	t.Helper()
+	for _, r := range roots {
+		if testWSLLikePath(r.Path) {
+			t.Fatalf("default roots included WSL-looking path %q", r.Path)
+		}
+	}
 }
 
 func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
@@ -116,6 +133,70 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 		if gotKind != kind {
 			t.Errorf("baseline root %q kind = %q, want %q", p, gotKind, kind)
 		}
+	}
+}
+
+func TestResolveRootsWindowsDefaultsDoNotIncludeWSLPaths(t *testing.T) {
+	home := t.TempDir()
+	setTestHome(t, home)
+	setTestCurrentUserDocumentsDir(t, filepath.Join(home, "Documents"))
+	appData := filepath.Join(home, "AppData", "Roaming")
+	localAppData := filepath.Join(home, "AppData", "Local")
+	t.Setenv("APPDATA", appData)
+	t.Setenv("LOCALAPPDATA", localAppData)
+
+	for _, p := range []string{
+		filepath.Join(home, "go"),
+		filepath.Join(appData, "npm", "node_modules"),
+		filepath.Join(localAppData, "Packages", "CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc", "LocalState", "rootfs", "home", "alice", "go"),
+		filepath.Join(localAppData, "Packages", "CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc", "LocalState", "rootfs", "home", "alice", ".vscode", "extensions"),
+	} {
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	roots, _, err := resolveRoots(model.ProfileBaseline, nil, rootsOpts{})
+	if err != nil {
+		t.Fatalf("resolveRoots baseline: %v", err)
+	}
+	assertNoWSLLikeRoots(t, roots)
+
+	usersDir, realHomes := fakeUsersDir(t, []string{"alice"}, nil)
+	t.Setenv("BUMBLEBEE_USERS_DIR", usersDir)
+	setTestHome(t, realHomes[0])
+	wslRootfs := filepath.Join(realHomes[0], "AppData", "Local", "Packages", "CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc", "LocalState", "rootfs", "home", "alice", "go")
+	if err := os.MkdirAll(wslRootfs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(realHomes[0], "go"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	allUserRoots, _, err := resolveRoots(model.ProfileBaseline, nil, rootsOpts{AllUsers: true})
+	if err != nil {
+		t.Fatalf("resolveRoots baseline --all-users: %v", err)
+	}
+	assertNoWSLLikeRoots(t, allUserRoots)
+}
+
+func TestResolveRootsWindowsExplicitWSLRootRemainsGeneric(t *testing.T) {
+	home := t.TempDir()
+	setTestHome(t, home)
+	explicit := `\\wsl$\Ubuntu\home\alice\repo`
+
+	roots, _, err := resolveRoots(model.ProfileProject, []string{explicit}, rootsOpts{})
+	if err != nil {
+		t.Fatalf("resolveRoots explicit WSL-like root: %v", err)
+	}
+	if len(roots) != 1 {
+		t.Fatalf("roots length = %d, want 1", len(roots))
+	}
+	if roots[0].Path != explicit {
+		t.Errorf("explicit root path = %q, want %q", roots[0].Path, explicit)
+	}
+	if roots[0].Kind != model.RootKindProject {
+		t.Errorf("explicit WSL-like root kind = %q, want %q", roots[0].Kind, model.RootKindProject)
 	}
 }
 
