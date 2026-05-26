@@ -824,6 +824,24 @@ git push --force-with-lease origin windows/compat-layer
 
 Maintenance receipt from 2026-05-26 upstream sync:
 
+- Fetched `upstream` and `origin` for a routine maintenance check. No new
+  upstream commits were available: `upstream/main` and local `main` both
+  resolved to `52d6891`, and `origin/windows/compat-layer` and local
+  `windows/compat-layer` both resolved to `14cff53`.
+- Fast-forwarding `main` was a no-op and `git rebase main` reported
+  `windows/compat-layer` already up to date. No conflicts occurred, no history
+  rewrite was needed, and no shared parser, schema, output sink, exposure
+  matching, scanner semantics, root-kind, or profile behavior required review.
+- Verification passed after the no-op sync: `go test ./cmd/bumblebee
+  ./internal/scanner ./internal/output`, `go test ./...`,
+  `scripts\windows-smoke.ps1`, and `git diff --check`. The Windows smoke
+  redacted summary reported `failures=0` and
+  `scan_summary.status=complete`.
+- Because the branch was already current with origin and no rebase rewrote
+  history, no `--force-with-lease` push was needed. This receipt can be
+  published with a normal push. Upstream PR work remains intentionally
+  unchecked because this fork is self-maintained in the TakeThree org for now.
+
 - Fetched `upstream` and `origin`; `upstream/main` advanced from `611dc79` to
   `52d6891` with `feat(threat_intel): add TrapDoor Crypto Stealer exposure
   catalog (#17)`.
