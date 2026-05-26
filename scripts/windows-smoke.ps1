@@ -79,6 +79,8 @@ $userGoSmokeProjectDir = if ($userGoSmokeSrcRoot) { Join-Path $userGoSmokeSrcRoo
 $userGoSmokeGoMod = if ($userGoSmokeProjectDir) { Join-Path $userGoSmokeProjectDir "go.mod" } else { "" }
 $userGoRootPreexisting = if ($userGoRoot) { Test-Path -LiteralPath $userGoRoot } else { $false }
 $userGoSmokeSrcRootPreexisting = if ($userGoSmokeSrcRoot) { Test-Path -LiteralPath $userGoSmokeSrcRoot } else { $false }
+$endpointSmokeDeviceIDEnvName = "BUMBLEBEE_SMOKE_DEVICE_ID"
+$endpointSmokeDeviceID = "bumblebee-smoke-$stamp"
 
 function ConvertTo-WindowsCommandLineArgument {
     param([AllowNull()][string]$Argument)
@@ -203,6 +205,30 @@ function Test-WslLikeRootPath {
     return $p.StartsWith('\\wsl$\') -or
         $p.StartsWith('\\wsl.localhost\') -or
         $p.Contains('\localstate\rootfs\')
+}
+
+function Get-EndpointUsernameShape {
+    param([string]$Username)
+
+    if ([string]::IsNullOrWhiteSpace($Username)) {
+        return "unknown"
+    }
+    if ($Username.Contains('\')) {
+        return "qualified"
+    }
+    if ($Username.Contains("@")) {
+        return "upn"
+    }
+    return "simple"
+}
+
+function Test-WindowsSidString {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+    return $Value -match '^S-\d-\d+(?:-\d+)+$'
 }
 
 function New-SmokePackageFixture {
@@ -658,13 +684,20 @@ if ($code -eq 0) {
     if ($rootsCode -ne 0) { $failures.Add("roots baseline failed") }
 
     $duration = "$($MaxDurationSeconds)s"
-    $scanCode = Invoke-Captured $exePath @(
-        "scan",
-        "--profile", "baseline",
-        "--output", "file",
-        "--output-file", $scanOut,
-        "--max-duration", $duration
-    ) (Join-Path $EvidenceRoot "scan.stdout.txt") $scanErr
+    $oldEndpointSmokeDeviceID = [Environment]::GetEnvironmentVariable($endpointSmokeDeviceIDEnvName)
+    [Environment]::SetEnvironmentVariable($endpointSmokeDeviceIDEnvName, $endpointSmokeDeviceID)
+    try {
+        $scanCode = Invoke-Captured $exePath @(
+            "scan",
+            "--profile", "baseline",
+            "--output", "file",
+            "--output-file", $scanOut,
+            "--device-id-env", $endpointSmokeDeviceIDEnvName,
+            "--max-duration", $duration
+        ) (Join-Path $EvidenceRoot "scan.stdout.txt") $scanErr
+    } finally {
+        [Environment]::SetEnvironmentVariable($endpointSmokeDeviceIDEnvName, $oldEndpointSmokeDeviceID)
+    }
     Add-CommandResult $commands "scan_baseline_file" $scanCode
     if ($scanCode -ne 0) { $failures.Add("baseline scan failed") }
 
@@ -892,6 +925,15 @@ $recordTypeCounts = [ordered]@{}
 $summary = $null
 $knownDocumentsSmokePackageEmitted = $false
 $userGoSmokePackageEmitted = $false
+$endpointRecordCount = 0
+$endpointPackageRecordCount = 0
+$endpointScanSummaryRecordCount = 0
+$endpointUsernameMissingCount = 0
+$endpointUsernameShape = "unknown"
+$endpointUsernameConsistentAcrossRecords = $true
+$endpointUIDWindowsSIDShape = $true
+$endpointDeviceIDPresentWhenEnvSupplied = $true
+$firstEndpointUsername = $null
 foreach ($record in $records) {
     $recordType = [string]$record.record_type
     if ([string]::IsNullOrWhiteSpace($recordType)) {
@@ -903,6 +945,36 @@ foreach ($record in $records) {
     $recordTypeCounts[$recordType]++
     if ($recordType -eq "scan_summary") {
         $summary = $record
+    }
+    $endpoint = Get-JsonProperty $record "endpoint"
+    if ($null -ne $endpoint) {
+        $endpointRecordCount++
+        if ($recordType -eq "package") {
+            $endpointPackageRecordCount++
+        }
+        if ($recordType -eq "scan_summary") {
+            $endpointScanSummaryRecordCount++
+        }
+
+        $endpointUsername = [string](Get-JsonProperty $endpoint "username")
+        if ([string]::IsNullOrWhiteSpace($endpointUsername)) {
+            $endpointUsernameMissingCount++
+        } elseif ($null -eq $firstEndpointUsername) {
+            $firstEndpointUsername = $endpointUsername
+            $endpointUsernameShape = Get-EndpointUsernameShape $endpointUsername
+        } elseif (-not [string]::Equals($firstEndpointUsername, $endpointUsername, [System.StringComparison]::Ordinal)) {
+            $endpointUsernameConsistentAcrossRecords = $false
+        }
+
+        $endpointUID = [string](Get-JsonProperty $endpoint "uid")
+        if (-not (Test-WindowsSidString $endpointUID)) {
+            $endpointUIDWindowsSIDShape = $false
+        }
+
+        $endpointDeviceID = [string](Get-JsonProperty $endpoint "device_id")
+        if (-not [string]::Equals($endpointSmokeDeviceID, $endpointDeviceID, [System.StringComparison]::Ordinal)) {
+            $endpointDeviceIDPresentWhenEnvSupplied = $false
+        }
     }
     if ($recordType -eq "package" -and
         (Get-JsonProperty $record "package_name") -eq $knownDocumentsSmokeModuleName -and
@@ -921,6 +993,29 @@ if ($commands.Contains("scan_baseline_file") -and $commands["scan_baseline_file"
 }
 if ($null -ne $summary -and $summary.status -ne "complete") {
     $failures.Add("scan_summary status was not complete")
+}
+if ($commands.Contains("scan_baseline_file") -and $commands["scan_baseline_file"].exit_code -eq 0) {
+    if ($endpointRecordCount -le 0) {
+        $failures.Add("baseline scan emitted no endpoint objects")
+    }
+    if ($endpointPackageRecordCount -le 0) {
+        $failures.Add("baseline scan emitted no package endpoint objects")
+    }
+    if ($endpointScanSummaryRecordCount -le 0) {
+        $failures.Add("baseline scan_summary endpoint object was missing")
+    }
+    if ($endpointUsernameMissingCount -gt 0) {
+        $failures.Add("baseline endpoint username was missing")
+    }
+    if (-not $endpointUsernameConsistentAcrossRecords) {
+        $failures.Add("baseline endpoint username was inconsistent across records")
+    }
+    if ($endpointRecordCount -le 0 -or -not $endpointUIDWindowsSIDShape) {
+        $failures.Add("baseline endpoint uid was not Windows-SID-shaped")
+    }
+    if ($endpointRecordCount -le 0 -or -not $endpointDeviceIDPresentWhenEnvSupplied) {
+        $failures.Add("baseline endpoint device_id did not match supplied env value")
+    }
 }
 if ($knownDocumentsSmokeFixtureCreated -and -not $knownDocumentsPowerShellModulesListed) {
     $failures.Add("known Documents smoke PowerShell module root was not listed")
@@ -1401,6 +1496,16 @@ $redacted = [ordered]@{
         diagnostics = Get-JsonProperty $summary "diagnostics_count"
         timed_out = Get-JsonProperty $summary "timed_out"
         error_present = if ($summary) { -not [string]::IsNullOrWhiteSpace([string](Get-JsonProperty $summary "error")) } else { $null }
+        endpoint_identity = [ordered]@{
+            endpoint_record_count = $endpointRecordCount
+            endpoint_package_record_count = $endpointPackageRecordCount
+            endpoint_scan_summary_record_count = $endpointScanSummaryRecordCount
+            endpoint_username_present = ($endpointRecordCount -gt 0 -and $endpointUsernameMissingCount -eq 0)
+            endpoint_username_shape = $endpointUsernameShape
+            endpoint_username_consistent_across_records = [bool]$endpointUsernameConsistentAcrossRecords
+            endpoint_uid_windows_sid_shape = ($endpointRecordCount -gt 0 -and $endpointUIDWindowsSIDShape)
+            endpoint_device_id_present_when_env_supplied = ($endpointRecordCount -gt 0 -and $endpointDeviceIDPresentWhenEnvSupplied)
+        }
     }
     http_sink = [ordered]@{
         request_count = $httpRequestCount

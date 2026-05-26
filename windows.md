@@ -214,7 +214,11 @@ Receipt from 2026-05-24 Windows walker safety hardening:
 
 - [x] Decide whether `endpoint.uid` should contain a Windows SID.
 - [x] Update docs so downstream consumers do not assume numeric Unix UIDs.
-- [ ] Verify `endpoint.username` shape for local, domain, and Azure AD users.
+- [x] Verify `endpoint.username` is emitted, redacted shape-classified, and
+  consistent across package and `scan_summary` records on the current Windows
+  smoke host.
+- [ ] Validate live local-account and Azure AD account-provider username shapes
+  on representative hosts when available.
 - [x] Keep `endpoint.device_id` as the preferred stable identity.
 - [x] Document Windows device ID provisioning through environment variables.
 - [x] Add tests around endpoint fields that are stable on Windows.
@@ -226,15 +230,19 @@ Receipt: Windows endpoint identity keeps the shared endpoint schema unchanged.
 `endpoint.uid` is the Windows user SID returned by Go `os/user` for the
 scanner process when user lookup succeeds; the Windows fallback intentionally
 leaves `uid` empty rather than emitting Go's `os.Getuid()` value of `-1`.
-`endpoint.username` remains the scanner-process account name, but the exact
-shape is account-provider dependent and still needs broader local, domain, and
-Azure AD validation before that checklist item is closed. `endpoint.device_id`
-remains the preferred stable machine correlation key and is populated only from
-the environment variable named by `--device-id-env`. Windows operators should
-provision that value from an existing fleet identity such as MDM, RMM, EDR,
-Microsoft Entra, Intune, or a provisioning script. Bumblebee must not
-automatically derive `device_id` from `MachineGuid`, SMBIOS UUID, hostname,
-registry state, Entra state, Intune state, or hardware identifiers.
+`endpoint.username` remains the scanner-process account name. The Windows smoke
+script now validates the evidence-backed part of that contract without writing
+raw identity values: username is present, its shape is redacted to a class, and
+the same value is used across package and `scan_summary` records. The exact
+shape is still account-provider dependent; live local-account and Azure AD
+representative-host validation remains open until those hosts are available.
+`endpoint.device_id` remains the preferred stable machine correlation key and
+is populated only from the environment variable named by `--device-id-env`.
+Windows operators should provision that value from an existing fleet identity
+such as MDM, RMM, EDR, Microsoft Entra, Intune, or a provisioning script.
+Bumblebee must not automatically derive `device_id` from `MachineGuid`, SMBIOS
+UUID, hostname, registry state, Entra state, Intune state, or hardware
+identifiers.
 
 ## Goal 8: Add Windows Deployment Documentation
 
@@ -445,8 +453,8 @@ Goal 6A smoke gap-fill receipt from 2026-05-25:
   validation an explicit manual/lab gate. When the flag is set, the smoke fails
   before build/scan unless Windows reports that the current user's `Documents`
   known-folder path differs from `%USERPROFILE%\Documents`.
-- [x] Verified on this host with
-  `C:\Users\bbutner\AppData\Local\Temp\bumblebee-windows-smoke\20260525-172746\smoke-summary.redacted.json`
+- [x] Verified on this host with a redacted summary under the outside-repo
+  smoke evidence directory
   plus a post-run cleanup check:
   `known_documents_smoke_fixture_created=true`,
   `known_documents_powershell_modules_exists=true`,
@@ -458,8 +466,8 @@ Goal 6A smoke gap-fill receipt from 2026-05-25:
 - [ ] A real redirected-Documents host is still needed to prove an actual
   production redirection policy end to end by running
   `powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1 -RequireRedirectedDocuments`;
-  this machine's known `Documents` path still resolves to
-  `C:\Users\bbutner\Documents`.
+  this machine's known `Documents` path still resolves to the standard
+  `%USERPROFILE%\Documents` location.
 
 ## Goal 11: Define WSL Behavior
 
@@ -484,8 +492,8 @@ Receipt from 2026-05-25 Windows WSL boundary:
   inside each distro.
 - Added Windows root tests and smoke validation for `wsl_root_count=0` so the
   compatibility layer does not silently start claiming WSL default roots.
-- Verified with
-  `C:\Users\bbutner\AppData\Local\Temp\bumblebee-windows-smoke\20260525-174834\smoke-summary.redacted.json`:
+- Verified with a redacted summary under the outside-repo smoke evidence
+  directory:
   `wsl_root_count=0` and `failures=0`.
 
 ## Goal 12: Validate End To End On Windows
@@ -623,9 +631,11 @@ Known limitations / current support boundary:
   remains open Goal 6 work.
 - Endpoint identity boundary: Windows `endpoint.uid` is documented as the
   scanner-process SID, and `endpoint.device_id` remains the preferred stable
-  machine identity supplied through `--device-id-env`. Broader
-  `endpoint.username` shape validation across local, domain, and Azure AD
-  users remains open Goal 7 work.
+  machine identity supplied through `--device-id-env`. The Windows smoke
+  validates scanner-process `endpoint.username` presence, redacted shape class,
+  and package/`scan_summary` consistency on the current host. Live
+  representative-host validation for local-account and Azure AD account
+  provider shapes remains open Goal 7 work.
 - Deployment/docs boundary: Windows deployment guidance is now captured in
   `docs/deployment-windows.md` for Task Scheduler, Intune/RMM/SCCM,
   incident-response, recurring baseline, file/log-shipper, HTTPS secret,
@@ -667,8 +677,8 @@ Real-profile `%USERPROFILE%\go` smoke receipt from 2026-05-25:
 - [x] The smoke now fails if `%USERPROFILE%\go` is not listed by
   `bumblebee roots --profile baseline`, or if the temporary `go.mod`
   dependency is not emitted as a `go-mod` package in the baseline scan.
-- [x] Verified on this host with
-  `C:\Users\bbutner\AppData\Local\Temp\bumblebee-windows-smoke\20260525-173528\smoke-summary.redacted.json`:
+- [x] Verified on this host with a redacted summary under the outside-repo
+  smoke evidence directory:
   `userprofile_go_smoke_fixture_created=true`,
   `userprofile_go_exists=true`, `userprofile_go_listed=true`,
   `userprofile_go_smoke_package_emitted=true`, and `failures=0`.

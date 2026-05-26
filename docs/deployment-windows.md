@@ -327,6 +327,9 @@ On a representative host:
    user's `Documents` known folder, add `-RequireRedirectedDocuments`. That
    mode fails early on non-redirected profiles and is the validation gate for
    proving redirected-Documents policy end to end.
+   The redacted summary also records endpoint username presence, shape class,
+   and package/`scan_summary` consistency. Treat that as scanner-process
+   context only, not as a stable endpoint key.
 
 Keep raw NDJSON, HTTP payloads, tokens, SIDs, hostnames, usernames, and full
 profile paths out of commits. Record only redacted aggregate receipts in

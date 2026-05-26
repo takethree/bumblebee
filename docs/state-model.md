@@ -190,7 +190,9 @@ On Windows, `endpoint.uid` is the Windows user SID returned by Go's
 `os/user` package when user lookup succeeds, not a numeric Unix UID.
 `endpoint.username` is the scanner-process account name and its exact shape is
 account-provider dependent, such as a local, domain, Azure AD, or service
-account name. `endpoint.device_id` should still be supplied by the operator
+account name. Treat it as opaque display context: do not split it on provider
+separators, infer account-provider identity from it, or use it as a stable
+endpoint key. `endpoint.device_id` should still be supplied by the operator
 through `--device-id-env`; prefer an existing MDM, RMM, EDR, Microsoft Entra,
 Intune, or provisioning-script asset identifier over deriving one inside
 Bumblebee.
