@@ -94,12 +94,16 @@ internals, custom `PYTHONPATH`/`PYTHONUSERBASE`, custom `PIPX_HOME`
 expansion, registry reads, and package-manager command execution are not
 claimed.
 
-Windows default roots do not currently claim Ruby/Bundler, Composer, WSL,
-all-users redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX, or
-Visual Studio extensions. For WSL package inventory, run the Linux Bumblebee
-binary inside each distro. NuGet project/deep metadata files are parsed when
-they appear under operator-supplied roots, but NuGet global package-cache
-baseline roots are not claimed.
+Windows default roots do not claim Ruby/Bundler, Composer, WSL, all-users
+redirected known folders, Chocolatey, Scoop, winget/MSIX/AppX, or Visual Studio
+extensions. Ruby/Bundler and Composer metadata are supported by the shared
+parsers when they appear under explicit, project, or deep roots, but Windows
+does not add user/global RubyGems, Bundler, Composer, `GEM_HOME`, `GEM_PATH`,
+`BUNDLE_PATH`, or `COMPOSER_HOME` baseline roots without a cross-platform
+baseline decision. For WSL package inventory, run the Linux Bumblebee binary
+inside each distro. NuGet project/deep metadata files are parsed when they
+appear under operator-supplied roots, but NuGet global package-cache baseline
+roots are not claimed.
 
 ## npm
 
@@ -257,6 +261,13 @@ References:
 
 ## RubyGems / Bundler
 
+Baseline roots:
+
+- Windows does not add RubyGems or Bundler user/global roots by default.
+  RubyGems/Bundler install locations are configurable and remain explicit,
+  project, or deep-root inventory unless a cross-platform baseline decision
+  adds equivalent behavior for all supported platforms.
+
 Files read:
 
 - `Gemfile.lock` — `GEM`, `GIT`, and `PATH` sections. Only top-level
@@ -282,6 +293,13 @@ References:
 - RubyGems specification format: <https://guides.rubygems.org/specification-reference/>
 
 ## Composer / Packagist
+
+Baseline roots:
+
+- Windows does not add Composer global or user roots by default. Composer
+  project metadata and installed vendor metadata are scanned when they appear
+  under supplied, project, or deep roots; Composer global home/vendor discovery
+  remains deferred pending a cross-platform baseline decision.
 
 Files read:
 

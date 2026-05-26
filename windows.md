@@ -90,11 +90,11 @@ package-manager execution.
 - [x] Add source-backed user npm/global package roots under `%APPDATA%\npm\node_modules`.
 - [x] Add Windows Python user site roots under `%APPDATA%\Python\Python*\site-packages`.
 - [x] Add source-backed Python install roots under `%LOCALAPPDATA%\Programs\Python\Python*\Lib\site-packages`, `%ProgramFiles%\Python*\Lib\site-packages`, and `%ProgramFiles(x86)%\Python*\Lib\site-packages`.
-- [ ] Defer arbitrary Python prefixes such as `C:\Python*`, Python Install Manager dynamic runtime enumeration, registry-discovered runtimes, Conda, pyenv-win, Store/MSIX internals, custom `PYTHONPATH`, and custom `PYTHONUSERBASE`.
+- [x] Defer arbitrary Python prefixes such as `C:\Python*`, Python Install Manager dynamic runtime enumeration, registry-discovered runtimes, Conda, pyenv-win, Store/MSIX internals, custom `PYTHONPATH`, and custom `PYTHONUSERBASE`.
 - [x] Add source-backed pipx venv roots under `%USERPROFILE%\pipx\venvs`, `%LOCALAPPDATA%\pipx\venvs`, and `%USERPROFILE%\.local\pipx\venvs`.
-- [ ] Defer arbitrary virtualenv discovery; project/deep scans already find virtualenv metadata under supplied roots.
-- [ ] Defer Ruby/Bundler user package roots until there is a cross-platform baseline decision.
-- [ ] Defer Composer user/global package roots until there is a cross-platform baseline decision.
+- [x] Defer arbitrary virtualenv discovery; project/deep scans already find virtualenv metadata under supplied roots.
+- [x] Defer Ruby/Bundler user package roots until there is a cross-platform baseline decision.
+- [x] Defer Composer user/global package roots until there is a cross-platform baseline decision.
 - [x] Add Windows VS Code extension roots.
 - [x] Add Windows Cursor extension roots.
 - [x] Add Windows Windsurf extension roots.
@@ -660,8 +660,9 @@ Known limitations / current support boundary:
   `%USERPROFILE%\.local\share\pipx\venvs` candidate, Chrome/Edge/Brave/
   Chromium/Vivaldi extension roots, and Firefox/LibreWolf/Waterfox profile
   roots. Arbitrary virtualenv discovery, custom npm/Python/pipx prefixes,
-  Ruby/Bundler, and Composer roots remain deferred until separate
-  compatibility-layer or cross-platform baseline decisions are made.
+  Ruby/Bundler, and Composer roots are explicit non-goals for Windows baseline
+  discovery unless a later cross-platform baseline decision changes that
+  boundary.
 - Browser boundary: Chrome, Edge, Brave, Chromium, Vivaldi, Firefox,
   LibreWolf, and Waterfox are the exercised browser families so far. Chromium
   was validated from an official snapshot archive rather than a normal stable
@@ -759,6 +760,25 @@ Goal 3B Python install-root receipt:
 - [x] Verified with Go tests and the Windows smoke strict-parity fixture,
   including a temporary `%LOCALAPPDATA%\Programs\Python\Python311\Lib\site-packages`
   PyPI dist-info package that does not touch a real Python install.
+
+Goal 3C deferred ecosystem boundary receipt:
+
+- [x] Closed the remaining Python deferrals as explicit compatibility-layer
+  boundaries: arbitrary Python prefixes, Python Install Manager dynamic
+  runtime enumeration, registry-discovered runtimes, Conda, pyenv-win,
+  Store/MSIX internals, custom `PYTHONPATH`, and custom `PYTHONUSERBASE`
+  remain outside baseline root discovery.
+- [x] Kept arbitrary virtualenv discovery out of baseline because Python
+  virtual environments are created in operator-selected target directories
+  and are already covered when supplied through explicit, project, or deep
+  roots.
+- [x] Kept Ruby/Bundler and Composer user/global baseline roots deferred until
+  there is a cross-platform baseline decision; the existing shared parsers
+  still scan `Gemfile.lock`, installed gemspec metadata, `composer.lock`, and
+  `vendor/composer/installed.json` under supplied/project/deep roots.
+- [x] No Windows-only root discovery, command execution, registry discovery,
+  RubyGems/Bundler/Composer command invocation, or output schema changes were
+  added for this boundary decision.
 
 ## Goal 13: Keep The Fork Easy To Update
 
