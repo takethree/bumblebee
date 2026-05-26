@@ -300,10 +300,13 @@ Files read:
   entry carries a `requested` range, that range is preserved in
   `requested_spec` while `version` remains the resolved package version.
 
-The parser does not read `obj/project.assets.json` and does not walk the NuGet
-global package cache by default. Those sources are generated/cache state and
-need separate output-volume and installed-state decisions before they become
-baseline roots.
+The parser does not read `obj/project.assets.json`, `.nuspec`, `.nupkg`, or the
+NuGet global package cache by default. NuGet documents the global packages
+folder as expanded downloaded package cache state, with a default Windows path
+under `%userprofile%\.nuget\packages` that can be redirected by environment,
+config, or MSBuild settings. Bumblebee treats that as cache/installed-state
+inventory, not project dependency declaration metadata, so global cache folders
+are intentionally not baseline roots.
 
 `packages.config` records intentionally leave `direct_dependency` empty because
 the file does not reliably distinguish direct intent from resolved dependency
@@ -315,6 +318,8 @@ References:
 
 - NuGet `packages.config`: <https://learn.microsoft.com/en-us/nuget/reference/packages-config>
 - NuGet lock files: <https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#locking-dependencies>
+- NuGet global package/cache folders: <https://learn.microsoft.com/en-us/nuget/consume-packages/managing-the-global-packages-and-cache-folders>
+- NuGet config path overrides: <https://learn.microsoft.com/en-us/nuget/reference/nuget-config-file>
 
 ## PowerShell modules
 

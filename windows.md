@@ -303,7 +303,7 @@ implemented or tested.
 - [x] Decide whether Visual Studio extensions are in scope.
 - [x] Decide whether Cargo/Maven/Gradle should be handled as cross-platform follow-ups rather than Windows-specific work.
 - [x] Implement NuGet project/deep parser support for `packages.config` and `packages.lock.json`.
-- [ ] Revisit NuGet global package-cache baseline roots only after project/deep metadata support is implemented and output volume is understood.
+- [x] Revisit NuGet global package-cache baseline roots only after project/deep metadata support is implemented and output volume is understood.
 - [x] Design PowerShell module manifest support, including `.psd1` parsing and the emitted ecosystem name, before implementation.
 - [x] Keep unsupported and deferred ecosystems explicitly documented.
 
@@ -387,6 +387,36 @@ Gap follow-up receipt from 2026-05-25 full validation:
   records leave `direct_dependency` empty, duplicate package/version records
   from `packages.config` and `packages.lock.json` are source-accurate, and
   NuGet global package-cache baseline roots remain deferred.
+
+NuGet global cache decision from 2026-05-26:
+
+- Revisited `%USERPROFILE%\.nuget\packages` and other NuGet global
+  package-cache roots after project/deep NuGet metadata support was in place.
+  Official NuGet docs describe the global packages folder as expanded
+  downloaded package cache state. On Windows the default is
+  `%userprofile%\.nuget\packages`, but it can be redirected through
+  `NUGET_PACKAGES`, `globalPackagesFolder`, `repositoryPath`, or
+  `RestorePackagesPath`.
+- The cache is not a project dependency declaration source. NuGet can clear it,
+  it may contain stale or unused packages, and fallback package folders use the
+  same expanded package-folder shape. Adding cache folders as baseline roots
+  without a separate parser/source-type design would either emit no meaningful
+  records or imply installed/cache-state inventory that Bumblebee does not
+  currently claim.
+- Aggregate-only local volume check on this host found the global package cache
+  present with 779 package-id directories, 1,540 version directories, 36,333
+  files, and about 7.6 GB of data. No local package names, versions, raw paths,
+  or raw listings were written to this receipt.
+- Decision: do not add NuGet global package-cache baseline roots in the Windows
+  compatibility layer. A future cache-inventory feature would need a separate
+  design for `.nuspec` / `.nupkg` or folder metadata parsing, source type,
+  stale-cache semantics, deduplication, and volume limits.
+
+Sources verified 2026-05-26:
+
+- https://learn.microsoft.com/en-us/nuget/consume-packages/managing-the-global-packages-and-cache-folders
+- https://learn.microsoft.com/en-us/nuget/reference/nuget-config-file
+- https://learn.microsoft.com/en-us/nuget/consume-packages/configuring-nuget-behavior
 
 PowerShell module manifest design from 2026-05-25:
 
@@ -646,10 +676,12 @@ Known limitations / current support boundary:
   OneDrive discovery outside the support claim.
 - Native ecosystem boundary: Goal 10 now decides the Windows-native ecosystem
   scope. NuGet project/deep metadata and PowerShell `.psd1` module manifest
-  inventory are the implemented Windows-native slices. NuGet global cache
-  roots remain deferred. Chocolatey, Scoop, winget/MSIX/AppX, and Visual
-  Studio extensions are deferred or out of scope for this phase. Cargo, Maven,
-  and Gradle remain cross-platform follow-ups. Unsupported and deferred native
+  inventory are the implemented Windows-native slices. NuGet global cache roots
+  were revisited after parser support and remain intentionally out of baseline
+  scope because they are expanded cache state, not project dependency
+  declarations. Chocolatey, Scoop, winget/MSIX/AppX, and Visual Studio
+  extensions are deferred or out of scope for this phase. Cargo, Maven, and
+  Gradle remain cross-platform follow-ups. Unsupported and deferred native
   ecosystems must stay explicitly documented rather than implied by "Windows
   support."
 - WSL boundary: no WSL filesystem coverage is claimed from the Windows binary.
