@@ -32,6 +32,8 @@ func isBrowserProfilePath(path string) bool {
 		"/AppData/Local/Chromium/User Data/",
 		"/AppData/Local/BraveSoftware/Brave-Browser/User Data/",
 		"/AppData/Local/Vivaldi/User Data/",
+		"/AppData/Local/Perplexity/Comet/User Data/",
+		"/AppData/Local/Packages/TheBrowserCompany.Arc_ttt1ap7aakyb4/LocalCache/Local/Arc/User Data/",
 		"/AppData/Roaming/Mozilla/Firefox/Profiles/",
 		"/AppData/Roaming/LibreWolf/Profiles/",
 		"/AppData/Roaming/Waterfox/Waterfox/Profiles/",

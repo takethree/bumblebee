@@ -200,12 +200,16 @@ coverage includes:
 - npm global packages under `%APPDATA%\npm\node_modules` when present.
 - Python user site-packages under `%APPDATA%\Python\Python*\site-packages`
   when present.
+- Python install-prefix site-packages under
+  `%LOCALAPPDATA%\Programs\Python\Python*\Lib\site-packages`,
+  `%ProgramFiles%\Python*\Lib\site-packages`, and
+  `%ProgramFiles(x86)%\Python*\Lib\site-packages` when present.
 - pipx venv roots under `%USERPROFILE%\pipx\venvs`,
   `%LOCALAPPDATA%\pipx\venvs`, `%USERPROFILE%\.local\pipx\venvs`, and the
   shared cross-platform `%USERPROFILE%\.local\share\pipx\venvs` candidate when
   present.
-- Chrome, Edge, Brave, Chromium, Vivaldi, Firefox, LibreWolf, and Waterfox
-  extension roots when present.
+- Chrome, Edge, Brave, Chromium, Vivaldi, Comet, Arc, Firefox, LibreWolf, and
+  Waterfox extension roots when present.
 - PowerShell module manifests under current-user and all-users PowerShell
   module roots when present, including the current user's resolved Windows
   `Documents` known-folder path.

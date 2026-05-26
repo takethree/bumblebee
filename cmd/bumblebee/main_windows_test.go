@@ -74,6 +74,10 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 	edgeProfile1Ext := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Profile 1", "Extensions")
 	vivaldiDefaultExt := filepath.Join(localAppData, "Vivaldi", "User Data", "Default", "Extensions")
 	vivaldiProfile9Ext := filepath.Join(localAppData, "Vivaldi", "User Data", "Profile 9", "Extensions")
+	cometDefaultExt := filepath.Join(localAppData, "Perplexity", "Comet", "User Data", "Default", "Extensions")
+	cometProfile1Ext := filepath.Join(localAppData, "Perplexity", "Comet", "User Data", "Profile 1", "Extensions")
+	arcDefaultExt := filepath.Join(localAppData, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Default", "Extensions")
+	arcProfile9Ext := filepath.Join(localAppData, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Profile 9", "Extensions")
 	firefoxProfiles := filepath.Join(appData, "Mozilla", "Firefox", "Profiles")
 	librewolfProfiles := filepath.Join(appData, "LibreWolf", "Profiles")
 	waterfoxProfiles := filepath.Join(appData, "Waterfox", "Waterfox", "Profiles")
@@ -114,6 +118,10 @@ func TestResolveRootsBaselineIncludesWindowsCurrentUserRoots(t *testing.T) {
 		edgeProfile1Ext:                  model.RootKindBrowserExtension,
 		vivaldiDefaultExt:                model.RootKindBrowserExtension,
 		vivaldiProfile9Ext:               model.RootKindBrowserExtension,
+		cometDefaultExt:                  model.RootKindBrowserExtension,
+		cometProfile1Ext:                 model.RootKindBrowserExtension,
+		arcDefaultExt:                    model.RootKindBrowserExtension,
+		arcProfile9Ext:                   model.RootKindBrowserExtension,
 		firefoxProfiles:                  model.RootKindBrowserExtension,
 		librewolfProfiles:                model.RootKindBrowserExtension,
 		waterfoxProfiles:                 model.RootKindBrowserExtension,
@@ -263,6 +271,10 @@ func TestResolveRootsBaselineSkipsAbsentWindowsCandidates(t *testing.T) {
 		filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Extensions"),
 		filepath.Join(localAppData, "Vivaldi", "User Data", "Default", "Extensions"),
 		filepath.Join(localAppData, "Vivaldi", "User Data", "Profile 9", "Extensions"),
+		filepath.Join(localAppData, "Perplexity", "Comet", "User Data", "Default", "Extensions"),
+		filepath.Join(localAppData, "Perplexity", "Comet", "User Data", "Profile 1", "Extensions"),
+		filepath.Join(localAppData, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Default", "Extensions"),
+		filepath.Join(localAppData, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Profile 9", "Extensions"),
 		filepath.Join(appData, "Mozilla", "Firefox", "Profiles"),
 		filepath.Join(appData, "LibreWolf", "Profiles"),
 		filepath.Join(appData, "Waterfox", "Waterfox", "Profiles"),
@@ -313,6 +325,8 @@ func TestClassifyRootWindowsBrowserExtensions(t *testing.T) {
 		`C:\Users\alice\AppData\Local\Microsoft\Edge\User Data\Profile 1\Extensions`,
 		`C:\Users\alice\AppData\Local\Vivaldi\User Data\Default\Extensions`,
 		`C:\Users\alice\AppData\Local\Vivaldi\User Data\Profile 9\Extensions`,
+		`C:\Users\alice\AppData\Local\Perplexity\Comet\User Data\Default\Extensions`,
+		`C:\Users\alice\AppData\Local\Packages\TheBrowserCompany.Arc_ttt1ap7aakyb4\LocalCache\Local\Arc\User Data\Default\Extensions`,
 		`C:\Users\alice\AppData\Roaming\Mozilla\Firefox\Profiles`,
 		`C:\Users\alice\AppData\Roaming\LibreWolf\Profiles`,
 		`C:\Users\alice\AppData\Roaming\Waterfox\Waterfox\Profiles`,
@@ -371,6 +385,8 @@ func TestResolveRootsBaselineWindowsBrowserRootsAvoidSensitiveParents(t *testing
 	chromiumDefault := filepath.Join(localAppData, "Chromium", "User Data", "Default")
 	edgeDefault := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default")
 	vivaldiDefault := filepath.Join(localAppData, "Vivaldi", "User Data", "Default")
+	cometDefault := filepath.Join(localAppData, "Perplexity", "Comet", "User Data", "Default")
+	arcDefault := filepath.Join(localAppData, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Default")
 	firefoxProfiles := filepath.Join(appData, "Mozilla", "Firefox", "Profiles")
 	firefoxProfile := filepath.Join(firefoxProfiles, "abcd.default-release")
 	librewolfProfiles := filepath.Join(appData, "LibreWolf", "Profiles")
@@ -382,6 +398,8 @@ func TestResolveRootsBaselineWindowsBrowserRootsAvoidSensitiveParents(t *testing
 		filepath.Join(chromiumDefault, "Extensions"),
 		filepath.Join(edgeDefault, "Extensions"),
 		filepath.Join(vivaldiDefault, "Extensions"),
+		filepath.Join(cometDefault, "Extensions"),
+		filepath.Join(arcDefault, "Extensions"),
 		firefoxProfiles,
 		librewolfProfiles,
 		waterfoxProfiles,
@@ -419,6 +437,16 @@ func TestResolveRootsBaselineWindowsBrowserRootsAvoidSensitiveParents(t *testing
 		filepath.Join(vivaldiDefault, "Cookies"),
 		filepath.Join(vivaldiDefault, "Login Data"),
 		filepath.Join(vivaldiDefault, "History"),
+		filepath.Dir(cometDefault),
+		cometDefault,
+		filepath.Join(cometDefault, "Cookies"),
+		filepath.Join(cometDefault, "Login Data"),
+		filepath.Join(cometDefault, "History"),
+		filepath.Dir(arcDefault),
+		arcDefault,
+		filepath.Join(arcDefault, "Cookies"),
+		filepath.Join(arcDefault, "Login Data"),
+		filepath.Join(arcDefault, "History"),
 		firefoxProfile,
 		filepath.Join(firefoxProfile, "cache2"),
 		filepath.Join(firefoxProfile, "cookies.sqlite"),
@@ -512,6 +540,8 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 			filepath.Join(local, "Chromium", "User Data", "Default", "Extensions"),
 			filepath.Join(local, "Microsoft", "Edge", "User Data", "Profile 1", "Extensions"),
 			filepath.Join(local, "Vivaldi", "User Data", "Default", "Extensions"),
+			filepath.Join(local, "Perplexity", "Comet", "User Data", "Default", "Extensions"),
+			filepath.Join(local, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Profile 9", "Extensions"),
 			filepath.Join(roaming, "Mozilla", "Firefox", "Profiles"),
 			filepath.Join(roaming, "LibreWolf", "Profiles"),
 			filepath.Join(roaming, "Waterfox", "Waterfox", "Profiles"),
@@ -558,10 +588,12 @@ func TestResolveRootsBaselineAllUsersExpansionWindows(t *testing.T) {
 			filepath.Join(local, "Chromium", "User Data", "Default", "Extensions"):                       model.RootKindBrowserExtension,
 			filepath.Join(local, "Microsoft", "Edge", "User Data", "Profile 1", "Extensions"):            model.RootKindBrowserExtension,
 			filepath.Join(local, "Vivaldi", "User Data", "Default", "Extensions"):                        model.RootKindBrowserExtension,
-			filepath.Join(roaming, "Mozilla", "Firefox", "Profiles"):                                     model.RootKindBrowserExtension,
-			filepath.Join(roaming, "LibreWolf", "Profiles"):                                              model.RootKindBrowserExtension,
-			filepath.Join(roaming, "Waterfox", "Waterfox", "Profiles"):                                   model.RootKindBrowserExtension,
-			filepath.Join(roaming, "Waterfox", "Profiles"):                                               model.RootKindBrowserExtension,
+			filepath.Join(local, "Perplexity", "Comet", "User Data", "Default", "Extensions"):            model.RootKindBrowserExtension,
+			filepath.Join(local, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Profile 9", "Extensions"): model.RootKindBrowserExtension,
+			filepath.Join(roaming, "Mozilla", "Firefox", "Profiles"):   model.RootKindBrowserExtension,
+			filepath.Join(roaming, "LibreWolf", "Profiles"):            model.RootKindBrowserExtension,
+			filepath.Join(roaming, "Waterfox", "Waterfox", "Profiles"): model.RootKindBrowserExtension,
+			filepath.Join(roaming, "Waterfox", "Profiles"):             model.RootKindBrowserExtension,
 		}
 		if samePath(h, realHomes[0]) {
 			want[redirectedPsUserModules] = model.RootKindUserPackage
@@ -677,6 +709,8 @@ func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 	chromiumDefaultExt := filepath.Join(localAppData, "Chromium", "User Data", "Default", "Extensions")
 	edgeDefaultExt := filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Extensions")
 	vivaldiDefaultExt := filepath.Join(localAppData, "Vivaldi", "User Data", "Default", "Extensions")
+	cometDefaultExt := filepath.Join(localAppData, "Perplexity", "Comet", "User Data", "Default", "Extensions")
+	arcDefaultExt := filepath.Join(localAppData, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Default", "Extensions")
 	firefoxProfiles := filepath.Join(appData, "Mozilla", "Firefox", "Profiles")
 	librewolfProfiles := filepath.Join(appData, "LibreWolf", "Profiles")
 	waterfoxProfiles := filepath.Join(appData, "Waterfox", "Waterfox", "Profiles")
@@ -701,6 +735,8 @@ func TestRunRootsBaselinePrintsWindowsCurrentUserRoots(t *testing.T) {
 		chromiumDefaultExt:               model.RootKindBrowserExtension,
 		edgeDefaultExt:                   model.RootKindBrowserExtension,
 		vivaldiDefaultExt:                model.RootKindBrowserExtension,
+		cometDefaultExt:                  model.RootKindBrowserExtension,
+		arcDefaultExt:                    model.RootKindBrowserExtension,
 		firefoxProfiles:                  model.RootKindBrowserExtension,
 		librewolfProfiles:                model.RootKindBrowserExtension,
 		waterfoxProfiles:                 model.RootKindBrowserExtension,

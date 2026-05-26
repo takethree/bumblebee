@@ -1,0 +1,243 @@
+version: 2
+
+goal:
+  title: "Windows Arc and Comet Browser Support"
+  slug: "windows-arc-comet-browser-support"
+  kind: existing_plan
+  tranche: "Fix README Python-root docs and add source-backed Windows Comet/Arc browser-extension support without broadening the compatibility-layer boundary."
+  status: done
+  oracle:
+    signal: "Docs, tests, Windows smoke, and a final audit prove README accuracy plus source-backed Windows browser-extension root support for Comet and validated Arc."
+    cadence: "after each Worker package and at final audit"
+    final_proof: "Passing go test ./..., git diff --check, scripts\\windows-smoke.ps1, updated docs, and an audit receipt that states whether Arc was implemented or legitimately skipped."
+  intake:
+    original_request: "Come up with a plan to fix the README and the Arc and Comet Windows browser support."
+    interpreted_outcome: "Bumblebee's Windows compatibility layer accurately documents implemented Python roots and supports source-backed Comet/Arc browser-extension roots with tests and smoke proof."
+    input_shape: existing_plan
+    audience: "TakeThree Windows compatibility-layer maintainer"
+    authority: approved
+    proof_type: test
+    completion_proof: "The branch contains verified docs/code/test updates and the final audit maps the result to the requested README and Arc/Comet support."
+    likely_misfire: "Adding unvalidated browser paths, claiming unsupported full browser parity, or changing docs without exercising roots in tests and smoke."
+    blind_spots_considered:
+      - "Arc is not installed on the current host and must not be faked."
+      - "Comet is locally installed, but official source evidence still needs to be cited in the receipt."
+      - "New browser profile parents need sensitive-path guards for broad explicit roots."
+      - "README must be aligned with already-implemented Python install-prefix roots."
+    existing_plan_facts:
+      - "README omits Windows Python install-prefix roots already present in code and inventory docs."
+      - "Comet local evidence exists under %LOCALAPPDATA%\\Perplexity\\Comet\\User Data\\Default\\Extensions."
+      - "Arc local evidence was absent during intake; source-backed validation is required before claiming support."
+      - "Candidate Comet root: %LOCALAPPDATA%\\Perplexity\\Comet\\User Data\\<Default|Profile 1..9>\\Extensions."
+      - "Candidate Arc root must be validated before use; expected package-family layout is %LOCALAPPDATA%\\Packages\\TheBrowserCompany.Arc_ttt1ap7aakyb4\\LocalCache\\Local\\Arc\\User Data\\<Default|Profile 1..9>\\Extensions."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-arc-comet-browser-support"
+    error: "GoalBuddy board command did not serve a local board; catalog fetch returned HTTP 404. File-backed board remains usable."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Validate the exact source-backed Windows Comet and Arc browser profile layouts and the README Python-root documentation gap."
+    inputs:
+      - "README.md"
+      - "docs/inventory-sources.md"
+      - "windows.md"
+      - "cmd/bumblebee/roots.go"
+      - "cmd/bumblebee/roots_windows.go"
+      - "cmd/bumblebee/main_windows_test.go"
+      - "internal/scanner/sensitive_windows.go"
+      - "internal/walk/excludes_windows.go"
+      - "scripts/windows-smoke.ps1"
+      - "Official Comet and Arc support/download docs"
+      - "Local non-secret browser layout evidence"
+    constraints:
+      - "Read-only."
+      - "Do not edit repo implementation or docs."
+      - "Use reputable official sources for browser download/install claims."
+      - "Do not record raw personal browser profile contents."
+    expected_output:
+      - "Exact supported Comet path decision."
+      - "Exact Arc path decision or legitimate skipped/blocker reason."
+      - "Files that must change."
+      - "Verification commands."
+      - "Any source links needed for docs receipts."
+    receipt:
+      result: done
+      summary: "Validated README Python-root doc gap, Comet local Chromium profile layout, and Arc official signed installer/package-family layout."
+      evidence:
+        - "README.md lists only %APPDATA% Python user site while docs/inventory-sources.md already lists Python install-prefix roots."
+        - "Comet local evidence: %LOCALAPPDATA%\\Perplexity\\Comet\\User Data exists; Default\\Extensions exists; 9 Chromium manifest-shaped files were found."
+        - "Arc official evidence: arc.net links Download Arc for Windows; Arc Help documents Windows package family TheBrowserCompany.Arc_ttt1ap7aakyb4; Arc extensions help applies to Windows."
+        - "Arc installer evidence: official releases.arc.net ArcInstaller.exe downloaded, Authenticode signature Valid for THE BROWSER COMPANY OF NEW YORK INC., install exit=0."
+        - "Arc local evidence: Get-AppxPackage reports TheBrowserCompany.Arc_ttt1ap7aakyb4 version 1.107.1.4; LocalCache\\Local\\Arc\\User Data exists; one Chromium manifest-shaped file was found."
+      source_links:
+        - "https://arc.net/"
+        - "https://resources.arc.net/hc/en-us/articles/22353769256471-How-To-Set-Arc-Group-Policies"
+        - "https://resources.arc.net/hc/en-us/articles/19434259167767-Extensions-in-Arc-How-to-Import-Add-Open"
+        - "https://comet-help.perplexity.ai/en/articles/11583748-installing-comet"
+        - "https://comet-help.perplexity.ai/en/articles/11583798-what-is-comet-s-browser-engine"
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Decide the largest safe implementation slice from the Scout evidence."
+    inputs:
+      - "T001 receipt"
+      - "Current git status"
+      - "windows.md compatibility-layer and Goal 13 constraints"
+    constraints:
+      - "Do not approve fake Arc support or broad browser-profile crawling."
+      - "Keep schema, parser semantics, and shared scanner behavior stable."
+    expected_output:
+      - "Decision: approved | revise | blocked"
+      - "Whether Arc is implementable in this tranche or must be skipped/documented."
+      - "Exact Worker objective."
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      rationale: "Comet and Arc now have enough source/local evidence for default Windows browser-extension root support. Keep the change bounded to root candidates, sensitive-path guards, tests, smoke, and docs."
+      worker_task: T003
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement the approved README, Windows browser-root, sensitive-path, test, smoke, and docs updates for the source-backed browser-support slice."
+    allowed_files:
+      - "README.md"
+      - "docs/inventory-sources.md"
+      - "windows.md"
+      - "cmd/bumblebee/roots_windows.go"
+      - "cmd/bumblebee/main_windows_test.go"
+      - "internal/scanner/sensitive_windows.go"
+      - "internal/walk/excludes_windows.go"
+      - "internal/walk/walk_windows_test.go"
+      - "internal/scanner/scanner_windows_test.go"
+      - "scripts/windows-smoke.ps1"
+      - "docs/goals/windows-arc-comet-browser-support/state.yaml"
+      - "docs/goals/windows-arc-comet-browser-support/notes/*"
+    verify:
+      - "go test ./cmd/bumblebee ./internal/scanner ./internal/walk"
+      - "go test ./..."
+      - "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Arc official/source-backed layout cannot be validated."
+      - "A browser installer requires credentials, account setup, or non-reputable download source."
+      - "Verification fails twice for the same reason."
+      - "Implementation would require registry probing, browser execution from scanner code, schema changes, or broad profile crawling."
+    receipt:
+      result: done
+      changed_files:
+        - "README.md"
+        - "docs/inventory-sources.md"
+        - "windows.md"
+        - "cmd/bumblebee/roots_windows.go"
+        - "cmd/bumblebee/main_windows_test.go"
+        - "internal/scanner/sensitive_windows.go"
+        - "internal/scanner/scanner_windows_test.go"
+        - "internal/walk/excludes_windows.go"
+        - "internal/walk/walk_windows_test.go"
+        - "scripts/windows-smoke.ps1"
+        - "docs/goals/windows-arc-comet-browser-support/state.yaml"
+      commands:
+        - cmd: "go test ./cmd/bumblebee ./internal/scanner ./internal/walk"
+          status: pass
+        - cmd: "go test ./..."
+          status: pass
+        - cmd: "scripts\\windows-smoke.ps1"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      smoke_summary:
+        path: "C:\\Users\\bbutner\\AppData\\Local\\Temp\\bumblebee-windows-smoke\\20260526-143112\\smoke-summary.redacted.json"
+        failures: 0
+        browser_root_count: 10
+        comet_default_extensions_exists: true
+        comet_default_extensions_listed: true
+        arc_default_extensions_exists: true
+        arc_default_extensions_listed: true
+        browser_extension_project_records: 8
+        chromium_extension_project_records: 5
+        firefox_extension_project_records: 3
+      summary: "Updated README Python-root support, added Comet and Arc Windows browser root candidates, extended sensitive-path guards, added root/sensitive/smoke coverage, and updated Windows support docs."
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the tranche satisfies the README and Windows Arc/Comet browser-support outcome."
+    inputs:
+      - "All task receipts"
+      - "Final git diff"
+      - "Verification command results"
+      - "windows.md compatibility-layer boundary"
+    constraints:
+      - "Do not mark complete if Arc was claimed without legitimate validation."
+      - "Do not mark complete if README still omits implemented Python install-prefix roots."
+      - "Do not mark complete if tests or smoke are missing for implemented roots."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Arc implemented or skipped status with reason"
+      - "Missing evidence, if any"
+      - "Next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      arc_status: "implemented"
+      comet_status: "implemented"
+      summary: "The tranche satisfies the README and Windows Arc/Comet browser-support outcome."
+      evidence:
+        - "README now lists Windows Python install-prefix roots and Arc/Comet browser extension roots."
+        - "docs/inventory-sources.md and windows.md describe Comet and Arc Windows root paths and compatibility-layer boundaries."
+        - "cmd/bumblebee/roots_windows.go adds Comet and Arc Default/Profile 1..9 extension candidates."
+        - "internal/scanner/sensitive_windows.go and internal/walk/excludes_windows.go cover Comet and Arc profile parents."
+        - "Windows tests cover root emission, all-users expansion, sensitive path pruning, and explicit profile roots."
+        - "Windows smoke passed with failures=0, Comet and Arc default extension roots listed, and 8 controlled browser-extension records emitted."
+      missing_evidence: []

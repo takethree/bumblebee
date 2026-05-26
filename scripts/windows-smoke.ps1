@@ -416,7 +416,9 @@ function New-SmokeBrowserFixture {
     $chromiumCases = @(
         @{ Browser = "BraveSoftware\Brave-Browser"; Name = "Smoke Brave Extension"; Id = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; Version = "1.0.0" },
         @{ Browser = "Chromium"; Name = "Smoke Chromium Extension"; Id = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"; Version = "2.0.0" },
-        @{ Browser = "Vivaldi"; Name = "Smoke Vivaldi Extension"; Id = "cccccccccccccccccccccccccccccccc"; Version = "3.0.0" }
+        @{ Browser = "Vivaldi"; Name = "Smoke Vivaldi Extension"; Id = "cccccccccccccccccccccccccccccccc"; Version = "3.0.0" },
+        @{ Browser = "Perplexity\Comet"; Name = "Smoke Comet Extension"; Id = "dddddddddddddddddddddddddddddddd"; Version = "4.0.0" },
+        @{ Browser = "Packages\TheBrowserCompany.Arc_ttt1ap7aakyb4\LocalCache\Local\Arc"; Name = "Smoke Arc Extension"; Id = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"; Version = "5.0.0" }
     )
     foreach ($case in $chromiumCases) {
         $manifestDir = Join-Path $Root "$($case.Browser)\User Data\Default\Extensions\$($case.Id)\$($case.Version)"
@@ -869,6 +871,8 @@ $braveDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "
 $chromiumDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Chromium\User Data\Default\Extensions" } else { "" }
 $edgeDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data\Default\Extensions" } else { "" }
 $vivaldiDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Vivaldi\User Data\Default\Extensions" } else { "" }
+$cometDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Perplexity\Comet\User Data\Default\Extensions" } else { "" }
+$arcDefaultExtensions = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Packages\TheBrowserCompany.Arc_ttt1ap7aakyb4\LocalCache\Local\Arc\User Data\Default\Extensions" } else { "" }
 $firefoxProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "Mozilla\Firefox\Profiles" } else { "" }
 $librewolfProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "LibreWolf\Profiles" } else { "" }
 $waterfoxProfiles = if ($env:APPDATA) { Join-Path $env:APPDATA "Waterfox\Waterfox\Profiles" } else { "" }
@@ -893,6 +897,10 @@ $edgeDefaultExtensionsExists = if ($edgeDefaultExtensions) { Test-Path $edgeDefa
 $edgeDefaultExtensionsListed = if ($edgeDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $edgeDefaultExtensions }).Count -gt 0 } else { $false }
 $vivaldiDefaultExtensionsExists = if ($vivaldiDefaultExtensions) { Test-Path $vivaldiDefaultExtensions } else { $false }
 $vivaldiDefaultExtensionsListed = if ($vivaldiDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $vivaldiDefaultExtensions }).Count -gt 0 } else { $false }
+$cometDefaultExtensionsExists = if ($cometDefaultExtensions) { Test-Path $cometDefaultExtensions } else { $false }
+$cometDefaultExtensionsListed = if ($cometDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $cometDefaultExtensions }).Count -gt 0 } else { $false }
+$arcDefaultExtensionsExists = if ($arcDefaultExtensions) { Test-Path $arcDefaultExtensions } else { $false }
+$arcDefaultExtensionsListed = if ($arcDefaultExtensions) { @($roots | Where-Object { $_.Path -eq $arcDefaultExtensions }).Count -gt 0 } else { $false }
 $firefoxProfilesExists = if ($firefoxProfiles) { Test-Path $firefoxProfiles } else { $false }
 $firefoxProfilesListed = if ($firefoxProfiles) { @($roots | Where-Object { $_.Path -eq $firefoxProfiles }).Count -gt 0 } else { $false }
 $librewolfProfilesExists = if ($librewolfProfiles) { Test-Path $librewolfProfiles } else { $false }
@@ -922,6 +930,12 @@ if ($knownDocumentsPowerShellModulesExists -and -not $knownDocumentsPowerShellMo
 }
 if ($knownDocumentsWindowsPowerShellModulesExists -and -not $knownDocumentsWindowsPowerShellModulesListed) {
     $failures.Add("known Documents WindowsPowerShell module root exists but was not listed")
+}
+if ($cometDefaultExtensionsExists -and -not $cometDefaultExtensionsListed) {
+    $failures.Add("Comet Default Extensions root exists but was not listed")
+}
+if ($arcDefaultExtensionsExists -and -not $arcDefaultExtensionsListed) {
+    $failures.Add("Arc Default Extensions root exists but was not listed")
 }
 
 $records = Read-JsonLines $scanOut
@@ -1296,6 +1310,8 @@ $browserExpectedNames = @(
     "Smoke Brave Extension",
     "Smoke Chromium Extension",
     "Smoke Vivaldi Extension",
+    "Smoke Comet Extension",
+    "Smoke Arc Extension",
     "Smoke LibreWolf Addon",
     "Smoke Waterfox Nested Addon",
     "Smoke Waterfox Legacy Addon"
@@ -1306,8 +1322,8 @@ foreach ($name in $browserExpectedNames) {
 }
 
 if ($commands.Contains("scan_project_browser_extensions") -and $commands["scan_project_browser_extensions"].exit_code -eq 0) {
-    if ($browserPackages.Count -ne 6) {
-        $failures.Add("browser extension smoke emitted $($browserPackages.Count) package records, want 6")
+    if ($browserPackages.Count -ne 8) {
+        $failures.Add("browser extension smoke emitted $($browserPackages.Count) package records, want 8")
     }
     if ($null -eq $browserSummary) {
         $failures.Add("browser extension smoke scan_summary was missing")
@@ -1319,11 +1335,11 @@ if ($commands.Contains("scan_project_browser_extensions") -and $commands["scan_p
             $failures.Add("browser extension smoke missing required field $field")
         }
     }
-    if (-not $browserSourceTypeCounts.Contains("browser-extension") -or $browserSourceTypeCounts["browser-extension"] -ne 6) {
-        $failures.Add("browser extension smoke did not emit 6 browser-extension source_type records")
+    if (-not $browserSourceTypeCounts.Contains("browser-extension") -or $browserSourceTypeCounts["browser-extension"] -ne 8) {
+        $failures.Add("browser extension smoke did not emit 8 browser-extension source_type records")
     }
-    if (-not $browserManagerCounts.Contains("chromium-extension") -or $browserManagerCounts["chromium-extension"] -ne 3) {
-        $failures.Add("browser extension smoke did not emit 3 chromium-extension records")
+    if (-not $browserManagerCounts.Contains("chromium-extension") -or $browserManagerCounts["chromium-extension"] -ne 5) {
+        $failures.Add("browser extension smoke did not emit 5 chromium-extension records")
     }
     if (-not $browserManagerCounts.Contains("firefox-extension") -or $browserManagerCounts["firefox-extension"] -ne 3) {
         $failures.Add("browser extension smoke did not emit 3 firefox-extension records")
@@ -1478,6 +1494,10 @@ $redacted = [ordered]@{
         edge_default_extensions_listed = [bool]$edgeDefaultExtensionsListed
         vivaldi_default_extensions_exists = [bool]$vivaldiDefaultExtensionsExists
         vivaldi_default_extensions_listed = [bool]$vivaldiDefaultExtensionsListed
+        comet_default_extensions_exists = [bool]$cometDefaultExtensionsExists
+        comet_default_extensions_listed = [bool]$cometDefaultExtensionsListed
+        arc_default_extensions_exists = [bool]$arcDefaultExtensionsExists
+        arc_default_extensions_listed = [bool]$arcDefaultExtensionsListed
         firefox_profiles_exists = [bool]$firefoxProfilesExists
         firefox_profiles_listed = [bool]$firefoxProfilesListed
         librewolf_profiles_exists = [bool]$librewolfProfilesExists

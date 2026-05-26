@@ -54,7 +54,7 @@ macOS/Linux. The tested Windows `baseline` population currently includes:
 - pipx venv roots under `%USERPROFILE%\pipx\venvs`,
   `%LOCALAPPDATA%\pipx\venvs`, `%USERPROFILE%\.local\pipx\venvs`, and the
   shared cross-platform `%USERPROFILE%\.local\share\pipx\venvs` candidate.
-- Chrome, Edge, Brave, Chromium, and Vivaldi extension roots under
+- Chrome, Edge, Brave, Chromium, Vivaldi, Comet, and Arc extension roots under
   `%LOCALAPPDATA%`.
 - Firefox, LibreWolf, and Waterfox profile roots under `%APPDATA%`.
 
@@ -556,9 +556,12 @@ deep walk descends into `~/.config/<browser>/<profile>/` but, again,
 only opens path-shape-matched manifests.
 
 On Windows, the compatibility layer currently adds default browser roots for
-Chrome, Edge, Brave, Chromium, and Vivaldi `Default` / `Profile 1`..`Profile 9`
-extension directories under `%LOCALAPPDATA%`, plus Firefox, LibreWolf, and
-Waterfox profile roots under `%APPDATA%`. Waterfox includes both the
+Chrome, Edge, Brave, Chromium, Vivaldi, Comet, and Arc `Default` /
+`Profile 1`..`Profile 9` extension directories under `%LOCALAPPDATA%`, plus
+Firefox, LibreWolf, and Waterfox profile roots under `%APPDATA%`. Comet uses
+`%LOCALAPPDATA%\Perplexity\Comet\User Data`; Arc uses the package-family path
+`%LOCALAPPDATA%\Packages\TheBrowserCompany.Arc_ttt1ap7aakyb4\LocalCache\Local\Arc\User Data`.
+Waterfox includes both the
 source-documented `%APPDATA%\Waterfox\Waterfox\Profiles` parent and the
 locally observed `%APPDATA%\Waterfox\Profiles` parent. Chromium support is
 validated against the official Chromium snapshot layout, not a normal signed

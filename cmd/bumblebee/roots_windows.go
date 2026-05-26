@@ -248,6 +248,8 @@ func platformBrowserExtensionCandidateRoots(home string) []string {
 			filepath.Join(localAppData, "Chromium", "User Data"),
 			filepath.Join(localAppData, "Microsoft", "Edge", "User Data"),
 			filepath.Join(localAppData, "Vivaldi", "User Data"),
+			filepath.Join(localAppData, "Perplexity", "Comet", "User Data"),
+			filepath.Join(localAppData, "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data"),
 		} {
 			for _, prof := range chromiumProfiles {
 				roots = append(roots, filepath.Join(base, prof, "Extensions"))

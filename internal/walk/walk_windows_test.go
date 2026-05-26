@@ -30,6 +30,8 @@ func TestWalkSkipsWindowsSensitiveSubtrees(t *testing.T) {
 		filepath.Join(root, "AppData", "Roaming", "LibreWolf", "Profiles", "abcd.default", "cache2"),
 		filepath.Join(root, "AppData", "Roaming", "Waterfox", "Waterfox", "Profiles", "abcd.default", "storage"),
 		filepath.Join(root, "AppData", "Roaming", "Waterfox", "Profiles", "abcd.default", "extensions"),
+		filepath.Join(root, "AppData", "Local", "Perplexity", "Comet", "User Data", "Default", "Cookies"),
+		filepath.Join(root, "AppData", "Local", "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Default", "Login Data"),
 	}
 	for _, dir := range blocked {
 		mustWrite(t, filepath.Join(dir, "sentinel.txt"), "blocked")
@@ -39,11 +41,15 @@ func TestWalkSkipsWindowsSensitiveSubtrees(t *testing.T) {
 	wantLibreWolf := filepath.Join(root, "AppData", "Roaming", "LibreWolf", "Profiles", "abcd.default", "extensions.json")
 	wantWaterfox := filepath.Join(root, "AppData", "Roaming", "Waterfox", "Waterfox", "Profiles", "abcd.default", "extensions.json")
 	wantWaterfoxLegacy := filepath.Join(root, "AppData", "Roaming", "Waterfox", "Profiles", "abcd.default", "extensions.json")
+	wantComet := filepath.Join(root, "explicit", "Perplexity", "Comet", "User Data", "Default", "Extensions", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1.0.0", "manifest.json")
+	wantArc := filepath.Join(root, "explicit", "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Default", "Extensions", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "1.0.0", "manifest.json")
 	mustWrite(t, wantProject, "{}")
 	mustWrite(t, wantFirefox, `{"addons":[]}`)
 	mustWrite(t, wantLibreWolf, `{"addons":[]}`)
 	mustWrite(t, wantWaterfox, `{"addons":[]}`)
 	mustWrite(t, wantWaterfoxLegacy, `{"addons":[]}`)
+	mustWrite(t, wantComet, `{"name":"Comet Safe","version":"1.0.0","manifest_version":3}`)
+	mustWrite(t, wantArc, `{"name":"Arc Safe","version":"1.0.0","manifest_version":3}`)
 
 	var seen []string
 	err := Walk(Options{
@@ -77,6 +83,12 @@ func TestWalkSkipsWindowsSensitiveSubtrees(t *testing.T) {
 	}
 	if !containsPath(seen, wantWaterfoxLegacy) {
 		t.Errorf("expected legacy Waterfox extensions.json to remain visitable; saw %v", seen)
+	}
+	if !containsPath(seen, wantComet) {
+		t.Errorf("expected explicit Comet extension manifest to remain visitable; saw %v", seen)
+	}
+	if !containsPath(seen, wantArc) {
+		t.Errorf("expected explicit Arc extension manifest to remain visitable; saw %v", seen)
 	}
 }
 

@@ -18,6 +18,8 @@ func platformDefaultExcludes() []string {
 		"AppData/Local/Chromium/User Data",
 		"AppData/Local/BraveSoftware/Brave-Browser/User Data",
 		"AppData/Local/Vivaldi/User Data",
+		"AppData/Local/Perplexity/Comet/User Data",
+		"AppData/Local/Packages/TheBrowserCompany.Arc_ttt1ap7aakyb4/LocalCache/Local/Arc/User Data",
 		"AppData/Roaming/Microsoft/Credentials",
 		"AppData/Local/Microsoft/Credentials",
 		"AppData/Roaming/Microsoft/Protect",

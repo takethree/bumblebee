@@ -113,6 +113,8 @@ baseline support requires native AppData, user profile, and tool-specific paths.
 - [x] Add Brave profile extension roots under `%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data`.
 - [x] Add Chromium profile extension roots under `%LOCALAPPDATA%\Chromium\User Data`.
 - [x] Add Vivaldi profile extension roots under `%LOCALAPPDATA%\Vivaldi\User Data`.
+- [x] Add Comet profile extension roots under `%LOCALAPPDATA%\Perplexity\Comet\User Data`.
+- [x] Add Arc profile extension roots under `%LOCALAPPDATA%\Packages\TheBrowserCompany.Arc_ttt1ap7aakyb4\LocalCache\Local\Arc\User Data`.
 - [x] Add Firefox profile roots under `%APPDATA%\Mozilla\Firefox\Profiles`.
 - [x] Add LibreWolf and Waterfox Windows profile roots if their layouts are reliable.
 - [x] Preserve the current narrow profile strategy: `Default` and `Profile 1` through `Profile 9`.
@@ -127,6 +129,14 @@ Receipt from 2026-05-25 remaining Windows browser root validation:
 - Added Windows baseline roots for Brave, Chromium, and Vivaldi using the same
   narrow Chromium-family strategy as Chrome and Edge: only `Default` and
   `Profile 1` through `Profile 9` `Extensions` directories are candidates.
+- Added Windows baseline roots for Comet and Arc using the same narrow
+  Chromium-family strategy. Comet was validated from the current host's
+  `%LOCALAPPDATA%\Perplexity\Comet\User Data\Default\Extensions` layout after
+  official Perplexity docs confirmed Comet is Chromium-based and supports most
+  Chrome extensions. Arc was validated from the official `arc.net` Windows
+  installer, whose Authenticode signature was valid for The Browser Company;
+  the installed package family was `TheBrowserCompany.Arc_ttt1ap7aakyb4` and
+  created `LocalCache\Local\Arc\User Data`.
 - Added Firefox-family profile-parent roots for LibreWolf and Waterfox. Waterfox
   includes both `%APPDATA%\Waterfox\Waterfox\Profiles`, which is documented by
   Waterfox support, and `%APPDATA%\Waterfox\Profiles`, which was created by the
@@ -137,11 +147,12 @@ Receipt from 2026-05-25 remaining Windows browser root validation:
   official portable build signed by OSSign as documented by LibreWolf, and
   signed BrowserWorks Waterfox installer with matching official SHA512.
 - Extended Windows sensitive browser-profile guards so LibreWolf and both
-  Waterfox profile layouts keep cookies, history, credential stores, storage,
-  cache, and per-extension payload directories out of deep scans while leaving
-  `extensions.json` scannable.
-- Added controlled smoke coverage for Brave, Chromium, Vivaldi, LibreWolf, and
-  both Waterfox profile layouts. The smoke fixture proves package-record
+  Waterfox profile layouts, plus Comet and Arc Chromium profile layouts, keep
+  cookies, history, credential stores, storage, cache, and per-extension
+  payload directories out of deep scans while leaving extension metadata
+  scannable.
+- Added controlled smoke coverage for Brave, Chromium, Vivaldi, Comet, Arc,
+  LibreWolf, and both Waterfox profile layouts. The smoke fixture proves package-record
   emission without reading or writing real personal browser profile contents.
 - Corrective live-profile validation replaced an invalid empty-directory check:
   `go run ./cmd/bumblebee scan --profile baseline --ecosystem browser-extension`
@@ -678,16 +689,17 @@ Known limitations / current support boundary:
   `%USERPROFILE%\pipx\venvs`, `%LOCALAPPDATA%\pipx\venvs`, and
   `%USERPROFILE%\.local\pipx\venvs`, plus the shared cross-platform
   `%USERPROFILE%\.local\share\pipx\venvs` candidate, Chrome/Edge/Brave/
-  Chromium/Vivaldi extension roots, and Firefox/LibreWolf/Waterfox profile
-  roots. Arbitrary virtualenv discovery, custom npm/Python/pipx prefixes,
+  Chromium/Vivaldi/Comet/Arc extension roots, and Firefox/LibreWolf/Waterfox
+  profile roots. Arbitrary virtualenv discovery, custom npm/Python/pipx prefixes,
   Ruby/Bundler, and Composer roots are explicit non-goals for Windows baseline
   discovery unless a later cross-platform baseline decision changes that
   boundary.
-- Browser boundary: Chrome, Edge, Brave, Chromium, Vivaldi, Firefox,
-  LibreWolf, and Waterfox are the exercised browser families so far. Chromium
-  was validated from an official snapshot archive rather than a normal stable
-  installer, and Waterfox keeps both documented and observed profile-parent
-  variants in scope.
+- Browser boundary: Chrome, Edge, Brave, Chromium, Vivaldi, Comet, Arc,
+  Firefox, LibreWolf, and Waterfox are the exercised browser families so far.
+  Chromium was validated from an official snapshot archive rather than a normal
+  stable installer; Comet and Arc were validated from official vendor sources
+  plus local Windows profile evidence; Waterfox keeps both documented and
+  observed profile-parent variants in scope.
 - Multi-user boundary: Windows `--all-users` uses local profile-directory
   enumeration only, matching the compatibility-layer approach. Registry, SID,
   domain, Azure AD, OneDrive, and redirected-profile discovery are not claimed;
@@ -742,7 +754,8 @@ Known gaps from the smoke run:
 - [x] Run a real-profile MCP smoke on a machine with a Windows Claude Desktop config root present.
 - [x] Decide whether operator-facing docs should clarify that `diagnostics_count` includes informational diagnostics, not only warnings or errors.
 - [x] Add a redacted smoke-test receipt pattern for future Windows validation runs so raw NDJSON inventory is never checked in.
-- [x] Keep the remaining browser families open until separately exercised.
+- [x] Close remaining browser-family validation gaps as they are exercised;
+  Arc and Comet were added and validated in the 2026-05-26 browser tranche.
 
 Real-profile `%USERPROFILE%\go` smoke receipt from 2026-05-25:
 

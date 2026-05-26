@@ -184,6 +184,71 @@ func TestWindowsStrictParityPackageRootsEmitRecords(t *testing.T) {
 	}
 }
 
+func TestWindowsArcAndCometExplicitProfileRootsSkipSensitiveFiles(t *testing.T) {
+	root := t.TempDir()
+	cometProfile := filepath.Join(root, "AppData", "Local", "Perplexity", "Comet", "User Data", "Default")
+	arcProfile := filepath.Join(root, "AppData", "Local", "Packages", "TheBrowserCompany.Arc_ttt1ap7aakyb4", "LocalCache", "Local", "Arc", "User Data", "Default")
+	writeFile(t, filepath.Join(cometProfile, "Cookies"), "private")
+	writeFile(t, filepath.Join(cometProfile, "Login Data"), "private")
+	writeFile(t, filepath.Join(cometProfile, "Extensions", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1.0.0", "manifest.json"), `{"name":"Comet Safe Extension","version":"1.0.0","manifest_version":3}`)
+	writeFile(t, filepath.Join(arcProfile, "History"), "private")
+	writeFile(t, filepath.Join(arcProfile, "Web Data"), "private")
+	writeFile(t, filepath.Join(arcProfile, "Extensions", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "2.0.0", "manifest.json"), `{"name":"Arc Safe Extension","version":"2.0.0","manifest_version":3}`)
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	em := output.New(stdout, stderr, "r")
+	res, err := Run(context.Background(), Config{
+		Roots: []Root{
+			{Path: cometProfile, Kind: model.RootKindBrowserExtension},
+			{Path: arcProfile, Kind: model.RootKindBrowserExtension},
+		},
+		Profile:     model.ProfileBaseline,
+		MaxFileSize: 1 << 20,
+		Concurrency: 1,
+		BaseRecord: model.Record{
+			SchemaVersion:  model.SchemaVersion,
+			ScannerName:    model.ScannerName,
+			ScannerVersion: "test",
+			RunID:          "r",
+			ScanTime:       time.Now().UTC().Format(time.RFC3339Nano),
+		},
+		Emitter: em,
+	})
+	if err != nil {
+		t.Fatalf("Run: %v; stderr=%s", err, stderr.String())
+	}
+	if res.FilesConsidered != 2 {
+		t.Fatalf("FilesConsidered = %d, want only the two extension manifests; stdout=%s stderr=%s", res.FilesConsidered, stdout.String(), stderr.String())
+	}
+
+	var sawComet, sawArc bool
+	for _, line := range bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n")) {
+		if len(line) == 0 {
+			continue
+		}
+		var r model.Record
+		if err := json.Unmarshal(line, &r); err != nil {
+			t.Fatalf("bad ndjson line: %v: %s", err, line)
+		}
+		if strings.Contains(filepath.ToSlash(r.SourceFile), "Cookies") ||
+			strings.Contains(filepath.ToSlash(r.SourceFile), "Login Data") ||
+			strings.Contains(filepath.ToSlash(r.SourceFile), "History") ||
+			strings.Contains(filepath.ToSlash(r.SourceFile), "Web Data") {
+			t.Fatalf("sensitive Arc/Comet profile file emitted a record: %+v", r)
+		}
+		if r.SourceType == "browser-extension" && r.PackageName == "Comet Safe Extension" {
+			sawComet = true
+		}
+		if r.SourceType == "browser-extension" && r.PackageName == "Arc Safe Extension" {
+			sawArc = true
+		}
+	}
+	if !sawComet || !sawArc {
+		t.Fatalf("required Arc/Comet extension metadata missing: comet=%v arc=%v stdout=%s", sawComet, sawArc, stdout.String())
+	}
+}
+
 func TestWindowsAccessDeniedIsDebugLevelDiagnostic(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "proj", "package-lock.json"), `{
