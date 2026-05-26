@@ -59,6 +59,9 @@ HTTP behavior:
 - Batching is line-count based. `--http-batch-size` controls records per POST.
 - HTTPS is required for non-loopback hosts unless `--http-allow-insecure` is set.
 - Bearer tokens and HMAC keys are read from environment variables, not CLI literals.
+- Additional static headers can be supplied with repeatable
+  `--http-header-env Header-Name=ENV_VAR`; values are read from environment
+  variables so receiver credentials do not appear as command-line literals.
 - Non-2xx responses fail the run immediately.
 - `scan_summary.http_batches_attempted`, `http_batches_succeeded`,
   `http_batches_failed`, and `http_last_status` report delivery results seen
@@ -78,6 +81,17 @@ Optional auth headers:
 - Bearer mode: `Authorization: Bearer <token>`
 - HMAC mode: `X-Inventory-Signature: sha256=<hex>`
 - HMAC mode with timestamp: `X-Inventory-Timestamp: <unix-seconds>`
+
+Optional custom headers:
+
+- `--http-header-env Header-Name=ENV_VAR` adds one static request header
+  whose value is read from `ENV_VAR`.
+- Custom headers cannot override headers managed by Bumblebee or the HTTP
+  client, including `Content-Type`, `Content-Encoding`, `Content-Length`,
+  `Host`, `User-Agent`, `Authorization`, `X-Inventory-Signature`, and
+  `X-Inventory-Timestamp`.
+- Use custom headers for receiver-side routing or gateway credentials that are
+  independent of Bumblebee's bearer/HMAC auth.
 
 HMAC signing rules:
 

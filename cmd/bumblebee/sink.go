@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/perplexityai/bumblebee/internal/output"
@@ -21,6 +22,7 @@ type sinkHTTPOpts struct {
 	BatchSize int
 	AllowHTTP bool
 	Gzip      bool
+	HeaderEnv []string
 	UserAgent string
 }
 
@@ -56,9 +58,14 @@ func openSink(dest, filePath string, appendMode bool, h sinkHTTPOpts) (io.Writer
 		if err != nil {
 			return nil, nil, err
 		}
+		headers, err := buildHTTPHeaders(h.HeaderEnv)
+		if err != nil {
+			return nil, nil, err
+		}
 		sink, err := output.NewHTTPSink(output.HTTPConfig{
 			URL:           h.URL,
 			Auth:          auth,
+			Headers:       headers,
 			Timeout:       h.Timeout,
 			BatchSize:     h.BatchSize,
 			UserAgent:     h.UserAgent,
@@ -72,6 +79,27 @@ func openSink(dest, filePath string, appendMode bool, h sinkHTTPOpts) (io.Writer
 	default:
 		return nil, nil, fmt.Errorf("unknown --output %q (want stdout|file|http)", dest)
 	}
+}
+
+func buildHTTPHeaders(values []string) (map[string]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	headers := make(map[string]string, len(values))
+	for _, value := range values {
+		name, envName, ok := strings.Cut(value, "=")
+		name = strings.TrimSpace(name)
+		envName = strings.TrimSpace(envName)
+		if !ok || name == "" || envName == "" {
+			return nil, fmt.Errorf("--http-header-env must be Header-Name=ENV_VAR")
+		}
+		headerValue := os.Getenv(envName)
+		if headerValue == "" {
+			return nil, fmt.Errorf("env var %q is empty", envName)
+		}
+		headers[name] = headerValue
+	}
+	return headers, nil
 }
 
 // buildHTTPAuth resolves the --http-auth mode plus its env-var-backed

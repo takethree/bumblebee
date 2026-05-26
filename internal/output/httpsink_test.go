@@ -272,6 +272,71 @@ func TestHTTPSink_GzipPlusHMACSignsCompressedBody(t *testing.T) {
 	}
 }
 
+func TestHTTPSink_CustomHeadersWithGzipAndHMAC(t *testing.T) {
+	cap := &captured{}
+	srv := httptest.NewServer(cap.handler())
+	defer srv.Close()
+
+	key := []byte("k")
+	sink, err := NewHTTPSink(HTTPConfig{
+		URL: srv.URL,
+		Auth: HTTPAuth{
+			Mode:            "hmac-sha256",
+			HMACKey:         key,
+			TimestampHeader: "X-Inventory-Timestamp",
+		},
+		Headers: map[string]string{
+			"X-Custom-Receiver": "receiver-token",
+		},
+		BatchSize: 10,
+		Gzip:      true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := New(sink, io.Discard, "run-1")
+	if _, err := e.Emit(model.Record{
+		Ecosystem: "npm", NormalizedName: "lodash", Version: "1",
+		SourceType: "npm-lockfile", SourceFile: "/x",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := cap.headers[0].Get("X-Custom-Receiver"); got != "receiver-token" {
+		t.Fatalf("custom header = %q, want receiver-token", got)
+	}
+	if got := cap.headers[0].Get("Content-Encoding"); got != "gzip" {
+		t.Fatalf("Content-Encoding = %q, want gzip", got)
+	}
+	if got := cap.headers[0].Get("X-Inventory-Signature"); !strings.HasPrefix(got, "sha256=") {
+		t.Fatalf("missing HMAC signature: %q", got)
+	}
+}
+
+func TestHTTPSink_RejectsReservedCustomHeaders(t *testing.T) {
+	reserved := []string{
+		"Authorization",
+		"Content-Encoding",
+		"Content-Length",
+		"Content-Type",
+		"Host",
+		"User-Agent",
+		"X-Inventory-Signature",
+		"X-Inventory-Timestamp",
+	}
+	for _, name := range reserved {
+		_, err := NewHTTPSink(HTTPConfig{
+			URL:     "https://example.com",
+			Headers: map[string]string{name: "value"},
+		})
+		if err == nil {
+			t.Fatalf("expected reserved header %q to be rejected", name)
+		}
+	}
+}
+
 func TestHTTPSink_Non2xxIsError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

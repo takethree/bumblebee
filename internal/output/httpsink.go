@@ -46,8 +46,13 @@ type HTTPAuth struct {
 
 // HTTPConfig configures an HTTPSink.
 type HTTPConfig struct {
-	URL       string
-	Auth      HTTPAuth
+	URL  string
+	Auth HTTPAuth
+	// Headers contains additional static request headers. Values should
+	// already be resolved from the operator's secret/config source before
+	// constructing the sink. Managed transport/auth headers cannot be set
+	// here.
+	Headers   map[string]string
 	Timeout   time.Duration
 	BatchSize int
 	UserAgent string
@@ -138,6 +143,9 @@ func validateHTTPConfig(cfg *HTTPConfig) error {
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = defaultTimeout
 	}
+	if err := validateCustomHeaders(cfg.Headers); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -147,6 +155,58 @@ func isLoopbackHost(host string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+func validateCustomHeaders(headers map[string]string) error {
+	for name, value := range headers {
+		trimmedName := strings.TrimSpace(name)
+		if trimmedName == "" {
+			return errors.New("http sink: custom header name is empty")
+		}
+		if trimmedName != name {
+			return fmt.Errorf("http sink: custom header %q has surrounding whitespace", name)
+		}
+		if !validHeaderName(trimmedName) {
+			return fmt.Errorf("http sink: custom header %q is not a valid HTTP field name", name)
+		}
+		if isReservedHeader(trimmedName) {
+			return fmt.Errorf("http sink: custom header %q is managed by bumblebee", name)
+		}
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("http sink: custom header %q value is empty", name)
+		}
+	}
+	return nil
+}
+
+func validHeaderName(name string) bool {
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case strings.ContainsRune("!#$%&'*+-.^_`|~", r):
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func isReservedHeader(name string) bool {
+	switch http.CanonicalHeaderKey(name) {
+	case "Authorization",
+		"Content-Encoding",
+		"Content-Length",
+		"Content-Type",
+		"Host",
+		"User-Agent",
+		defaultHMACHeader,
+		"X-Inventory-Timestamp":
+		return true
+	default:
+		return false
+	}
 }
 
 // Write appends one NDJSON line to the buffer and flushes when full.
@@ -221,6 +281,9 @@ func (h *HTTPSink) flushLocked() error {
 	}
 	if h.cfg.UserAgent != "" {
 		req.Header.Set("User-Agent", h.cfg.UserAgent)
+	}
+	for name, value := range h.cfg.Headers {
+		req.Header.Set(name, value)
 	}
 	if err := applyAuth(req, h.cfg.Auth, wireBody); err != nil {
 		return err

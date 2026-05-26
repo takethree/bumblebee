@@ -59,6 +59,17 @@ func (s *stringList) Set(v string) error {
 	return nil
 }
 
+type repeatString []string
+
+func (r *repeatString) String() string { return strings.Join(*r, ",") }
+func (r *repeatString) Set(v string) error {
+	v = strings.TrimSpace(v)
+	if v != "" {
+		*r = append(*r, v)
+	}
+	return nil
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		usage(os.Stderr)
@@ -122,6 +133,7 @@ type scanOpts struct {
 	httpBatchSize int
 	httpAllowHTTP bool
 	httpGzip      bool
+	httpHeaderEnv repeatString
 
 	deviceIDEnv string
 }
@@ -158,6 +170,7 @@ func registerScanFlags(fs *flag.FlagSet, o *scanOpts) {
 	fs.IntVar(&o.httpBatchSize, "http-batch-size", 500, "records per POST for --output=http")
 	fs.BoolVar(&o.httpAllowHTTP, "http-allow-insecure", false, "allow plain http:// to non-loopback hosts (testing only)")
 	fs.BoolVar(&o.httpGzip, "http-gzip", false, "gzip the POST body for --output=http (Content-Encoding: gzip)")
+	fs.Var(&o.httpHeaderEnv, "http-header-env", "additional HTTP request header from an env var for --output=http, as Header-Name=ENV_VAR (repeatable)")
 
 	fs.StringVar(&o.deviceIDEnv, "device-id-env", "",
 		"env var holding a stable opaque endpoint/device id (e.g. set by MDM, EDR, or a provisioning script); populates endpoint.device_id when set")
@@ -212,6 +225,7 @@ func runScan(args []string) int {
 		BatchSize: o.httpBatchSize,
 		AllowHTTP: o.httpAllowHTTP,
 		Gzip:      o.httpGzip,
+		HeaderEnv: o.httpHeaderEnv,
 		UserAgent: fmt.Sprintf("bumblebee/%s", currentVersion()),
 	})
 	if err != nil {

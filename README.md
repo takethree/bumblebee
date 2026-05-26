@@ -179,7 +179,7 @@ PowerShell:
 ```
 
 For scheduled Windows deployment, file/HTTPS output, `--device-id-env`,
-and `--all-users` examples, see
+receiver gateway headers, and `--all-users` examples, see
 [docs/deployment-windows.md](docs/deployment-windows.md).
 
 ## Windows compatibility layer

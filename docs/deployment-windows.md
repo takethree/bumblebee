@@ -109,14 +109,27 @@ For HMAC mode, replace the bearer options with:
 --http-hmac-key-env BUMBLEBEE_HMAC_KEY
 ```
 
+If the HTTPS receiver sits behind a gateway that requires static request
+headers, supply them from environment variables rather than command-line
+literals:
+
+```powershell
+--http-header-env X-Gateway-Client-Id=BUMBLEBEE_GATEWAY_CLIENT_ID `
+--http-header-env X-Gateway-Client-Secret=BUMBLEBEE_GATEWAY_CLIENT_SECRET
+```
+
+Gateway headers are separate from Bumblebee bearer/HMAC auth and cannot
+override Bumblebee-managed transport headers.
+
 There is no built-in S3, GCS, or Azure Blob uploader. Send to a local file plus
 a shipper, or to a small internal HTTP relay.
 
 ## Task Scheduler baseline example
 
 Use a wrapper script so the scheduled task command line contains no secrets.
-Fleet tooling should provision `BUMBLEBEE_TOKEN` and `BUMBLEBEE_DEVICE_ID` as
-machine or process environment variables before the script runs.
+Fleet tooling should provision `BUMBLEBEE_TOKEN`, `BUMBLEBEE_HMAC_KEY`,
+`BUMBLEBEE_DEVICE_ID`, and any gateway header environment variables as machine
+or process environment variables before the script runs.
 
 Example `C:\ProgramData\Bumblebee\run-baseline.ps1`:
 
@@ -216,6 +229,14 @@ recurring scan wrappers when that better matches the tenant's operations model.
 For Configuration Manager, use an application or package deployment with a
 script detection method. For RMM tools, use the same wrapper scripts and keep
 secrets out of command-line arguments.
+
+For self-service deployments that use Bumblebee Hive as the receiver, prefer
+the Hive bootstrapper. It downloads and checksum-verifies the Bumblebee release,
+enrolls the endpoint with Hive, stores secrets with Windows DPAPI-backed
+PowerShell secret material, writes the baseline wrapper, and can register the
+scheduled task. The generated wrapper still uses the same documented
+`bumblebee.exe scan` command shape; Hive-specific gateway headers are passed
+through generic `--http-header-env` flags.
 
 ## One-shot incident response
 

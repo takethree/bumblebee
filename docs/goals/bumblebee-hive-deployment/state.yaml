@@ -1,0 +1,386 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Bumblebee Hive Deployment"
+  slug: "bumblebee-hive-deployment"
+  kind: existing_plan
+  tranche: "Complete the first deployable Windows self-service install plus Cloudflare Worker receiver path."
+  status: done
+  oracle:
+    signal: "A Windows Bumblebee deployment smoke uploads a complete gzip NDJSON scan through Cloudflare Access plus Bumblebee HMAC into Hive, and Hive durably records raw batch data plus a run index before returning 2xx."
+    cadence: "after each Worker package and at final audit"
+    final_proof: "Receipts show source validation, Bumblebee transport tests, Hive Worker tests, bootstrapper tests, and an end-to-end local/dev smoke with a complete scan_summary recorded."
+  intake:
+    original_request: "Come up with a deployment plan and a secure endpoint application to receive Bumblebee transport data."
+    interpreted_outcome: "Build an operator-deployable, secure, low-friction Windows deployment path and Cloudflare Worker receiver for Bumblebee inventory."
+    input_shape: existing_plan
+    audience: "Windows developers and operators receiving Bumblebee inventory"
+    authority: approved
+    proof_type: test
+    completion_proof: "A configured Windows Bumblebee install sends a complete scan to Hive through Access plus HMAC, and Hive records the raw payload and run metadata."
+    likely_misfire: "Implementing a receiver or installer that looks plausible but breaks Bumblebee's transport contract, requires manual developer configuration, or creates hard-to-maintain fork divergence."
+    blind_spots_considered:
+      - "Cloudflare Access service-token headers require Bumblebee support for env-backed custom headers."
+      - "HMAC must verify against the exact raw body before gzip decompression."
+      - "Cloudflare request-size limits require bounded batch sizing and gzip."
+      - "Per-device HMAC secrets need local Windows secret handling and receiver-side lifecycle decisions."
+      - "Raw inventory and secrets must not leak into committed receipts."
+      - "A dashboard is useful later but not required for first durable ingest."
+    existing_plan_facts:
+      - "Name the sibling receiver app Bumblebee Hive unless the user later renames it."
+      - "Use Cloudflare Workers behind Zero Trust."
+      - "Protect ingest with Cloudflare Access service token headers plus Bumblebee HMAC."
+      - "Use R2 for immutable raw batches."
+      - "Use D1 for device, batch, and run indexes."
+      - "Use Queues for async normalization hooks."
+      - "Add generic env-backed HTTP headers to Bumblebee rather than Cloudflare-specific code."
+      - "Self-service install should download, verify, install, enroll, configure, schedule, and smoke test Bumblebee without developer flag work."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/bumblebee-hive-deployment/"
+    command: "npx goalbuddy board docs/goals/bumblebee-hive-deployment"
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: medium
+    objective: "Validate the deployment and Hive receiver plan against current Bumblebee docs/code and official Cloudflare/Microsoft sources."
+    inputs:
+      - "docs/transport.md"
+      - "docs/deployment-windows.md"
+      - "docs/state-model.md"
+      - "cmd/bumblebee HTTP sink flags and output package"
+      - "Official Cloudflare Workers, Access, R2, D1, Queues, and limits docs"
+      - "Official Microsoft Scheduled Tasks, Get-FileHash, Authenticode, and Windows secret-storage docs"
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Prefer official/vendor docs over blog posts."
+      - "Record exact source links and any changed product constraints."
+      - "Keep the receiver scope to raw archive plus run index unless evidence proves that insufficient."
+    expected_output:
+      - "Source-backed architecture confirmation or corrections"
+      - "Exact first Worker slice recommendation"
+      - "Security and limits notes that affect implementation"
+      - "Any required docs updates or open decisions"
+    receipt:
+      result: done
+      note: notes/T001-source-validation.md
+      summary: "Validated the plan against repo docs/code and official Cloudflare/Microsoft sources. Access-plus-HMAC is viable, but requires a generic env-backed custom HTTP header slice in Bumblebee before Hive ingest can be hidden behind Cloudflare Access."
+      evidence:
+        - "docs/transport.md"
+        - "internal/output/httpsink.go"
+        - "internal/output/httpsink_test.go"
+        - "docs/deployment-windows.md"
+        - "docs/state-model.md"
+        - "notes/T001-source-validation.md"
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review T001 evidence and choose the first largest safe implementation slice."
+    inputs:
+      - "T001 receipt"
+      - "Current branch status"
+      - "Compatibility-layer maintenance constraints"
+    constraints:
+      - "Do not implement."
+      - "Reject Cloudflare-specific Bumblebee changes."
+      - "Prefer a vertical slice that can be tested locally."
+      - "If source evidence invalidates Access-plus-HMAC or storage choices, produce a corrected decision before Worker starts."
+    expected_output:
+      - "Decision: approved | revise | blocked"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify commands"
+      - "stop_if conditions"
+      - "Deferred tasks, if any"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      summary: "Approved the first Worker slice: add generic repeatable env-backed HTTP headers to Bumblebee, with reserved-header rejection and tests, so Cloudflare Access service-token headers can be supplied without Cloudflare-specific code."
+      allowed_files:
+        - "cmd/bumblebee/main.go"
+        - "cmd/bumblebee/sink.go"
+        - "cmd/bumblebee/*test.go"
+        - "internal/output/httpsink.go"
+        - "internal/output/httpsink_test.go"
+        - "docs/transport.md"
+        - "docs/deployment-windows.md"
+        - "README.md"
+        - "docs/goals/bumblebee-hive-deployment/state.yaml"
+        - "docs/goals/bumblebee-hive-deployment/notes/*"
+      verify:
+        - "go test ./internal/output ./cmd/bumblebee"
+        - "go test ./..."
+        - "git diff --check"
+      stop_if:
+        - "Implementation needs Cloudflare-specific CLI flags or package imports."
+        - "Custom headers can override Bumblebee-managed headers."
+        - "Secrets are accepted as literal CLI values instead of env vars."
+        - "Tests cannot verify custom headers with HMAC plus gzip."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Add generic repeatable env-backed HTTP custom headers to Bumblebee's HTTP sink."
+    allowed_files:
+      - "cmd/bumblebee/main.go"
+      - "cmd/bumblebee/sink.go"
+      - "cmd/bumblebee/*test.go"
+      - "internal/output/httpsink.go"
+      - "internal/output/httpsink_test.go"
+      - "docs/transport.md"
+      - "docs/deployment-windows.md"
+      - "README.md"
+      - "docs/goals/bumblebee-hive-deployment/state.yaml"
+      - "docs/goals/bumblebee-hive-deployment/notes/*"
+    verify:
+      - "go test ./internal/output ./cmd/bumblebee"
+      - "go test ./..."
+      - "git diff --check"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Need production Cloudflare credentials or external account access."
+      - "The selected transport shape requires a non-generic Bumblebee change."
+      - "Verification fails twice with the same root cause."
+      - "Secrets, raw inventory, hostnames, SIDs, usernames, or full profile paths would be committed."
+      - "Implementation needs Cloudflare-specific CLI flags or package imports."
+      - "Custom headers can override Bumblebee-managed headers."
+      - "Secrets are accepted as literal CLI values instead of env vars."
+      - "Tests cannot verify custom headers with HMAC plus gzip."
+    receipt:
+      result: done
+      changed_files:
+        - "cmd/bumblebee/main.go"
+        - "cmd/bumblebee/sink.go"
+        - "cmd/bumblebee/sink_test.go"
+        - "internal/output/httpsink.go"
+        - "internal/output/httpsink_test.go"
+        - "docs/transport.md"
+        - "docs/deployment-windows.md"
+        - "README.md"
+      commands:
+        - cmd: "& 'C:\\Users\\bbutner\\.codex\\tools\\go1.26.3\\go\\bin\\gofmt.exe' -w cmd\\bumblebee\\main.go cmd\\bumblebee\\sink.go cmd\\bumblebee\\sink_test.go internal\\output\\httpsink.go internal\\output\\httpsink_test.go"
+          status: pass
+        - cmd: "& 'C:\\Users\\bbutner\\.codex\\tools\\go1.26.3\\go\\bin\\go.exe' test ./internal/output ./cmd/bumblebee"
+          status: pass
+        - cmd: "& 'C:\\Users\\bbutner\\.codex\\tools\\go1.26.3\\go\\bin\\go.exe' test ./..."
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      summary: "Added repeatable --http-header-env support backed only by environment variables, reserved managed-header validation, custom header application in the generic HTTP sink, and tests proving custom headers coexist with gzip plus HMAC."
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Build the Hive Worker MVP after the transport slice is verified."
+    allowed_files:
+      - "F:/bumblebee-hive/**"
+      - "docs/goals/bumblebee-hive-deployment/state.yaml"
+      - "docs/goals/bumblebee-hive-deployment/notes/*"
+    verify:
+      - "npm test"
+      - "npm run typecheck"
+      - "npm run lint"
+      - "npm run build"
+      - "git diff --check"
+    stop_if:
+      - "Judge has not authorized the receiver repo/path and allowed files."
+      - "Need production Cloudflare credentials."
+      - "Raw-body HMAC verification cannot be tested locally."
+      - "Durable acceptance semantics are ambiguous."
+    receipt:
+      result: done
+      changed_files:
+        - "F:/bumblebee-hive/.gitignore"
+        - "F:/bumblebee-hive/README.md"
+        - "F:/bumblebee-hive/package.json"
+        - "F:/bumblebee-hive/package-lock.json"
+        - "F:/bumblebee-hive/tsconfig.json"
+        - "F:/bumblebee-hive/wrangler.toml"
+        - "F:/bumblebee-hive/migrations/0001_init.sql"
+        - "F:/bumblebee-hive/src/index.ts"
+        - "F:/bumblebee-hive/test/ingest.test.ts"
+      commands:
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' install --before=2026-05-26T23:59:59.000Z"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' test"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' run typecheck"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' run lint"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' run build"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' exec -- wrangler deploy --dry-run --outdir dist"
+          status: pass
+        - cmd: "git init -b main; git add -N .; git diff --check"
+          status: pass
+      summary: "Created the sibling Bumblebee Hive Worker app in F:/bumblebee-hive with Access-protected enrollment and ingest, encrypted per-device HMAC key storage, raw-body HMAC verification before gzip decompression, R2 raw batch writes, D1 device/batch/run indexes, Queue enqueue, migration schema, and tests for enrollment, valid ingest, bad Access headers, bad HMAC, and missing summaries."
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Build the Windows self-service bootstrapper and scheduled wrapper after Hive local ingest exists."
+    allowed_files:
+      - "F:/bumblebee-hive/**"
+      - "docs/deployment-windows.md"
+      - "docs/goals/bumblebee-hive-deployment/state.yaml"
+      - "docs/goals/bumblebee-hive-deployment/notes/*"
+    verify:
+      - "powershell -NoProfile -ExecutionPolicy Bypass -File F:/bumblebee-hive/scripts/install-bumblebee.ps1 -WhatIf"
+      - "powershell -NoProfile -ExecutionPolicy Bypass -File F:/bumblebee-hive/scripts/install-bumblebee.ps1 -InstallRoot <temp> -ConfigRoot <temp> -TaskName <temp> -SkipSchedule -SkipDownload"
+      - "npm test"
+      - "git diff --check"
+    stop_if:
+      - "Judge has not authorized installer file locations and allowed files."
+      - "Download verification source is unavailable."
+      - "Windows secret-storage behavior cannot be tested without unsafe secret exposure."
+      - "The bootstrapper would require developers to hand-configure normal install flags."
+    receipt:
+      result: done
+      changed_files:
+        - "F:/bumblebee-hive/scripts/install-bumblebee.ps1"
+        - "F:/bumblebee-hive/README.md"
+        - "docs/deployment-windows.md"
+      commands:
+        - cmd: "powershell -NoProfile -ExecutionPolicy Bypass -File F:\\bumblebee-hive\\scripts\\install-bumblebee.ps1 -HiveBaseUrl https://hive.example.test -AccessClientId access-id -AccessClientSecret access-secret -WhatIf"
+          status: pass
+        - cmd: "temporary install with built bumblebee.exe, -SkipDownload, -SkipEnroll, -SkipSchedule, -ScanProfile project, and bounded -ScanRoot"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' test"
+          status: pass
+        - cmd: "git add -N .; git diff --check"
+          status: pass
+      summary: "Added the Windows self-service bootstrapper. It can download and checksum-verify a release, install bumblebee.exe, enroll with Hive or use supplied test credentials, store HMAC and Access credentials with DPAPI-backed Export-Clixml, generate the scheduled-run wrapper with generic --http-header-env headers, optionally register a scheduled task, and support bounded project-root smoke installs without changing the production baseline default."
+
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Run and document the end-to-end local/dev deployment smoke."
+    allowed_files:
+      - "F:/bumblebee-hive/**"
+      - "docs/goals/bumblebee-hive-deployment/state.yaml"
+      - "docs/goals/bumblebee-hive-deployment/notes/*"
+    verify:
+      - "npm test"
+      - "npm run typecheck"
+      - "npm run build"
+      - "git diff --check"
+    stop_if:
+      - "Transport, Hive, or bootstrapper slices are incomplete."
+      - "No safe local/dev Cloudflare-compatible test path exists."
+      - "Smoke output would expose raw inventory or secrets in committed files."
+    receipt:
+      result: done
+      changed_files:
+        - "F:/bumblebee-hive/package.json"
+        - "F:/bumblebee-hive/test/e2e.test.ts"
+      commands:
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' test"
+          status: pass
+        - cmd: "$env:BUMBLEBEE_E2E='1'; $env:BUMBLEBEE_REPO='F:\\bumblebee'; $env:GO_EXE='C:\\Users\\bbutner\\.codex\\tools\\go1.26.3\\go\\bin\\go.exe'; & 'C:\\Program Files\\nodejs\\npm.cmd' run test:e2e"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' run typecheck"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' run lint"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' run build"
+          status: pass
+        - cmd: "& 'C:\\Program Files\\nodejs\\npm.cmd' exec -- wrangler deploy --dry-run --outdir dist"
+          status: pass
+        - cmd: "& 'C:\\Users\\bbutner\\.codex\\tools\\go1.26.3\\go\\bin\\go.exe' test ./..."
+          status: pass
+        - cmd: "git diff --check in both F:/bumblebee and F:/bumblebee-hive"
+          status: pass
+      summary: "Added and ran an end-to-end local deployment smoke. The smoke builds the Bumblebee Windows binary, installs it through the Hive bootstrapper into temp paths, generates a bounded project-root wrapper, runs that wrapper against a local HTTP server backed by the Hive Worker, and verifies Hive records R2 raw data, D1 batch rows, and one complete run summary."
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the deployment plus Hive receiver tranche satisfies the original user outcome."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "Goal oracle"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if only docs/planning exist without a working deployment smoke."
+      - "Reject completion if Bumblebee gained Cloudflare-specific behavior."
+      - "Reject completion if raw inventory or secrets are present in commits or receipts."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "The tranche satisfies the original outcome. Bumblebee has a generic, upstream-friendly env-backed custom header transport slice for Access-style gateways; Bumblebee Hive exists as a sibling Worker app with Access-protected enrollment and ingest, encrypted device HMAC key storage, raw R2 batch persistence, D1 run indexing, and Queue enqueue; the bootstrapper installs/configures Bumblebee without manual flag work; and the e2e smoke proves a real Bumblebee run reaches Hive with a complete scan_summary."
+      evidence:
+        - "T001 source validation receipt"
+        - "T003 Go transport receipt with go test ./..."
+        - "T004 Hive Worker receipt with npm tests/typecheck/build/lint and Wrangler dry-run"
+        - "T005 bootstrapper receipt with WhatIf and temp install tests"
+        - "T006 e2e smoke receipt proving complete run delivery into Hive"
+      missing_evidence: []
+      next_task: null
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []
