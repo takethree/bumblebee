@@ -1,0 +1,289 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Windows Upstream Sync Maintenance"
+  slug: "windows-upstream-sync-maintenance"
+  kind: existing_plan
+  tranche: "Verify or perform the documented upstream sync workflow for the Windows compatibility branch."
+  status: done
+  oracle:
+    signal: "Branch/remotes are verified, upstream is fetched, local main mirrors upstream/main, windows/compat-layer is rebased or proven current, verification passes, push/no-push is decided safely, and windows.md records only evidence-backed Goal 13 maintenance progress."
+    cadence: "after Scout branch-state mapping, after Judge sync decision, after Worker sync/verification, and at final audit"
+    final_proof: "Receipts list branch state, upstream/main ancestry, rebase/no-op result, conflict classification, verification commands, push status, and final audit with full_outcome_complete=true."
+  intake:
+    original_request: "$goalbuddy:goal-prep for the Goal 13 upstream-sync maintenance plan."
+    interpreted_outcome: "Prepare a GoalBuddy board that executes the documented upstream sync workflow carefully and keeps the Windows compatibility fork maintainable."
+    input_shape: existing_plan
+    audience: "Maintainer of the TakeThree Windows compatibility fork"
+    authority: approved
+    proof_type: test
+    completion_proof: "Clean branch/remotes evidence, fetch/ff-only/rebase or no-op ancestry proof, passing tests and Windows smoke, windows.md maintenance receipt, and safe push/no-push handling."
+    likely_misfire: "Casually resolving shared-core conflicts, rewriting main, pushing without verification, or marking upstream PR work as complete even though this is a self-maintained fork."
+    blind_spots_considered:
+      - "Upstream may have no new commits; a no-op sync still needs ancestry proof."
+      - "A rebase can require force-with-lease after verification."
+      - "Conflicts in shared parser/schema/output/exposure/scanner semantics may indicate compatibility-layer leakage."
+      - "A full Windows smoke can be slow but is the required proof for this maintenance tranche."
+    existing_plan_facts:
+      - "Use the documented branch model from windows.md and agent.md."
+      - "Fetch upstream and origin before judging whether a rebase is needed."
+      - "Keep local main a clean mirror of upstream/main."
+      - "Push only to origin/windows/compat-layer."
+      - "Use --force-with-lease only if the Windows branch history changes."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/windows-upstream-sync-maintenance"
+    last_error: "npx goalbuddy board exited without generating a board; fetch of https://raw.githubusercontent.com/tolibear/goalbuddy/main/extend/catalog.json returned HTTP 404."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: low
+    objective: "Map current branch, remotes, ancestry, worktree cleanliness, and Goal 13 maintenance rules before any sync changes."
+    inputs:
+      - "docs/goals/windows-upstream-sync-maintenance/goal.md"
+      - "windows.md Goal 13"
+      - "agent.md branch model"
+      - "git status --short --branch"
+      - "git remote -v"
+      - "git branch -vv"
+      - "git log --oneline --decorate --max-count=12 --graph --all"
+    constraints:
+      - "Read-only."
+      - "Do not fetch, switch branches, rebase, merge, commit, or push."
+      - "Do not inspect unrelated implementation files except to classify a later diff boundary if needed."
+    expected_output:
+      - "Current branch and tracking state."
+      - "Remote URLs."
+      - "Whether the worktree is clean."
+      - "Known local ahead/behind state before fetch."
+      - "Maintenance constraints to enforce in the Worker."
+    receipt:
+      result: done
+      summary: "Branch model and maintenance rules are aligned with windows.md and agent.md. The tracked worktree is clean; the only dirt is this new GoalBuddy control directory. origin points to takethree/bumblebee, upstream points to perplexityai/bumblebee, local main tracks upstream/main, and windows/compat-layer tracks origin/windows/compat-layer."
+      evidence:
+        - "git status --short --branch: windows/compat-layer tracks origin/windows/compat-layer; only docs/goals/windows-upstream-sync-maintenance is untracked."
+        - "git remote -v: origin=https://github.com/takethree/bumblebee.git; upstream=https://github.com/perplexityai/bumblebee/"
+        - "git branch -vv: main at 611dc79 tracking upstream/main; windows/compat-layer at 5fcd7de tracking origin/windows/compat-layer."
+        - "git rev-list --left-right --count upstream/main...main: 0 0 before fetch."
+        - "git rev-list --left-right --count origin/windows/compat-layer...windows/compat-layer: 0 0 before fetch."
+        - "git rev-list --left-right --count main...windows/compat-layer: 0 25 before fetch."
+      constraints_for_worker:
+        - "Goal control files are the only pre-sync dirt and may be preserved."
+        - "Do not commit Windows work to main."
+        - "Push only to origin/windows/compat-layer."
+        - "Use --force-with-lease only if rebase rewrites the Windows branch."
+        - "Stop on conflicts in shared parser/schema/model/output/exposure/scanner semantics, CLI semantics, root-kind taxonomy, or profile meanings."
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: medium
+    objective: "Approve the exact upstream-sync Worker package from Scout evidence."
+    inputs:
+      - "T001 Scout receipt"
+      - "Goal oracle"
+      - "windows.md Goal 13"
+    constraints:
+      - "Read-only."
+      - "Do not perform fetch/rebase/push."
+      - "Reject any plan that changes schemas, parsers, sinks, exposure matching, scanner semantics, root kinds, profile meanings, or emitted record semantics."
+    expected_output:
+      - "approved | revise | blocked"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "allowed git commands"
+      - "verify commands"
+      - "stop_if conditions"
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      summary: "Approve one bounded Worker package. Correct the draft combined fetch command into separate git fetch upstream and git fetch origin commands, then run the documented main fast-forward, Windows-branch rebase/no-op check, verification, windows.md receipt update, and safe push/no-push decision."
+      exact_worker_objective: "Fetch upstream/origin, fast-forward local main to upstream/main, rebase windows/compat-layer onto main if needed or prove no-op ancestry, verify, update Goal 13 receipt, and push only if branch history changed."
+      allowed_files:
+        - "windows.md"
+        - "docs/goals/windows-upstream-sync-maintenance/state.yaml"
+      allowed_git_commands:
+        - "git fetch upstream"
+        - "git fetch origin"
+        - "git switch main"
+        - "git merge --ff-only upstream/main"
+        - "git switch windows/compat-layer"
+        - "git rebase main"
+        - "git push --force-with-lease origin windows/compat-layer"
+        - "git push origin windows/compat-layer"
+      allowed_read_commands:
+        - "git status --short --branch"
+        - "git rev-parse <ref>"
+        - "git rev-list --left-right --count <left>...<right>"
+        - "git diff --name-only <base>...<head>"
+        - "git log --oneline --decorate --max-count=<n> --graph --all"
+      verify:
+        - "go test ./cmd/bumblebee ./internal/..."
+        - "go test ./..."
+        - "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+        - "git diff --check"
+      conditional_verify:
+        - "go test -race ./... only if fetched upstream changes touched concurrency, scanner walking, sinks, model identity, or broad tests."
+      stop_if:
+        - "Pre-sync dirt includes files outside this goal's control files."
+        - "Need to commit Windows compatibility work directly to main."
+        - "Need to push to upstream or open a Perplexity PR."
+        - "A conflict appears in shared schema/model, parser, output sink, exposure matching, scanner semantics, CLI semantics, root-kind taxonomy, or profile meanings."
+        - "Verification fails twice for the same reason."
+        - "Need files outside allowed_files other than conflict-resolution files explicitly approved by a fresh Judge receipt."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Execute the approved upstream sync or proven no-op sync, verify it, and update Goal 13 receipts."
+    allowed_files:
+      - "windows.md"
+      - "docs/goals/windows-upstream-sync-maintenance/state.yaml"
+    allowed_git_commands:
+      - "git fetch upstream"
+      - "git fetch origin"
+      - "git switch main"
+      - "git merge --ff-only upstream/main"
+      - "git switch windows/compat-layer"
+      - "git rebase main"
+      - "git push --force-with-lease origin windows/compat-layer"
+      - "git push origin windows/compat-layer"
+    verify:
+      - "go test ./cmd/bumblebee ./internal/..."
+      - "go test ./..."
+      - "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+      - "git diff --check"
+    conditional_verify:
+      - "go test -race ./... when upstream changed concurrency, scanner walking, sinks, model identity, or broad tests."
+    stop_if:
+      - "Worktree is dirty before sync and dirt is not limited to this goal's control files."
+      - "Need to commit Windows compatibility work directly to main."
+      - "Need to push to upstream or open a Perplexity PR."
+      - "A conflict appears in shared schema/model, parser, output sink, exposure matching, scanner semantics, CLI semantics, root-kind taxonomy, or profile meanings."
+      - "Verification fails twice for the same reason."
+      - "Need files outside allowed_files other than conflict-resolution files explicitly approved by Judge."
+    receipt:
+      result: done
+      changed_files:
+        - "windows.md"
+        - "docs/goals/windows-upstream-sync-maintenance/state.yaml"
+      sync_result:
+        upstream_before: "611dc79"
+        upstream_after: "52d6891"
+        upstream_change: "feat(threat_intel): add TrapDoor Crypto Stealer exposure catalog (#17)"
+        local_main: "52d6891"
+        windows_branch_after_rebase: "fc706de"
+        rebase_result: "success_no_conflicts"
+        push_result: "git push --force-with-lease origin windows/compat-layer succeeded"
+      conflict_classification:
+        shared_core_conflicts: false
+        notes:
+          - "Upstream changed threat_intel/README.md and threat_intel/trapdoor-crypto-stealer.json only."
+          - "No schema/model, parser, output sink, exposure matching, scanner semantics, CLI semantics, root-kind, or profile conflict occurred."
+      commands:
+        - cmd: "git fetch upstream"
+          status: pass
+        - cmd: "git fetch origin"
+          status: pass
+        - cmd: "git switch main"
+          status: pass
+        - cmd: "git merge --ff-only upstream/main"
+          status: pass
+        - cmd: "git switch windows/compat-layer"
+          status: pass
+        - cmd: "git rebase main"
+          status: pass
+        - cmd: "go test ./cmd/bumblebee ./internal/..."
+          status: pass
+        - cmd: "go test ./..."
+          status: pass
+        - cmd: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\windows-smoke.ps1"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+        - cmd: "git push --force-with-lease origin windows/compat-layer"
+          status: pass
+      smoke_evidence:
+        evidence_location: "outside-repo smoke-summary.redacted.json for run 20260525-225354"
+        failures: 0
+        roots: 19
+        package_records: 4035
+        scan_summary_status: "complete"
+        endpoint_username_present: true
+        endpoint_username_shape: "qualified"
+      summary: "Fetched upstream/origin, fast-forwarded local main to upstream/main, rebased windows/compat-layer onto main with no conflicts, verified the rebased branch, updated windows.md Goal 13 with an evidence-backed maintenance receipt, and force-with-lease pushed the rewritten Windows branch."
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the upstream-sync maintenance tranche is complete."
+    inputs:
+      - "All task receipts"
+      - "Last verification"
+      - "Current branch/remotes status"
+      - "windows.md Goal 13"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if any required Worker task is still queued or active."
+      - "Reject completion if local main is not a clean mirror of upstream/main."
+      - "Reject completion if windows/compat-layer is not current with main or blocked with a specific conflict receipt."
+      - "Reject completion if push status is unknown after a rewritten branch."
+      - "Reject completion if windows.md overclaims upstream PR or shared-code safety."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "The upstream-sync maintenance tranche is complete. Local main mirrors upstream/main at 52d6891, windows/compat-layer is rebased onto main and published to origin/windows/compat-layer at fc706de, verification passed, and windows.md records only the evidence-backed Goal 13 maintenance result."
+      requirement_audit:
+        branch_model_verified: "T001 receipt verifies origin/upstream URLs and branch tracking."
+        upstream_fetched: "T003 receipt records successful fetches from upstream and origin."
+        local_main_mirrors_upstream: "Current rev-list upstream/main...main is 0 0 and both refs resolve to 52d6891."
+        windows_branch_current_with_main: "Current rev-list main...windows/compat-layer is 0 25 after successful rebase."
+        conflicts_classified: "Rebase completed with no conflicts; upstream touched threat_intel files only."
+        verification_passed: "T003 receipt records passing targeted Go tests, full Go tests, Windows smoke, and git diff --check."
+        publish_status_known: "Force-with-lease push to origin/windows/compat-layer succeeded; current rev-list origin/windows/compat-layer...windows/compat-layer is 0 0."
+        windows_md_receipt: "windows.md records the upstream sync result and keeps upstream PR work unchecked."
+      residual_risk:
+        - "GoalBuddy control files and the windows.md receipt are local workspace changes until separately committed."

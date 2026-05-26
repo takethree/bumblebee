@@ -736,6 +736,28 @@ powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1
 git push --force-with-lease origin windows/compat-layer
 ```
 
+Maintenance receipt from 2026-05-26 upstream sync:
+
+- Fetched `upstream` and `origin`; `upstream/main` advanced from `611dc79` to
+  `52d6891` with `feat(threat_intel): add TrapDoor Crypto Stealer exposure
+  catalog (#17)`.
+- Fast-forwarded local `main` to `upstream/main`, then rebased
+  `windows/compat-layer` onto `main` with no conflicts. The upstream change
+  touched only `threat_intel/README.md` and
+  `threat_intel/trapdoor-crypto-stealer.json`, so no shared parser, schema,
+  output sink, exposure matching, scanner semantics, root-kind, or profile
+  conflict needed resolution.
+- Verification passed after the rebase: `go test ./cmd/bumblebee
+  ./internal/...`, `go test ./...`, `scripts\windows-smoke.ps1`, and
+  `git diff --check`. The Windows smoke redacted summary reported
+  `failures=0`, `roots=19`, `package_records=4035`,
+  `scan_summary.status=complete`, and redacted endpoint username evidence
+  present.
+- Because the branch was rebased, the required publish step is
+  `git push --force-with-lease origin windows/compat-layer`. Upstream PR work
+  remains intentionally unchecked because this fork is self-maintained in the
+  TakeThree org for now.
+
 Maintenance receipt from 2026-05-24 base-code cleanup:
 
 - Removed the shared `StableID` path-normalization change; record identity is
