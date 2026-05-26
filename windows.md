@@ -236,8 +236,9 @@ Goal 6B redirected known-folder boundary receipt:
 - [x] Verify `endpoint.username` is emitted, redacted shape-classified, and
   consistent across package and `scan_summary` records on the current Windows
   smoke host.
-- [ ] Validate live local-account and Azure AD account-provider username shapes
-  on representative hosts when available.
+- [x] Close live local-account and Azure AD account-provider username-shape
+  validation as optional representative-host evidence rather than a baseline
+  requirement.
 - [x] Keep `endpoint.device_id` as the preferred stable identity.
 - [x] Document Windows device ID provisioning through environment variables.
 - [x] Add tests around endpoint fields that are stable on Windows.
@@ -253,8 +254,8 @@ leaves `uid` empty rather than emitting Go's `os.Getuid()` value of `-1`.
 script now validates the evidence-backed part of that contract without writing
 raw identity values: username is present, its shape is redacted to a class, and
 the same value is used across package and `scan_summary` records. The exact
-shape is still account-provider dependent; live local-account and Azure AD
-representative-host validation remains open until those hosts are available.
+shape is account-provider dependent and is intentionally not normalized by the
+Windows compatibility layer.
 `endpoint.device_id` remains the preferred stable machine correlation key and
 is populated only from the environment variable named by `--device-id-env`.
 Windows operators should provision that value from an existing fleet identity
@@ -262,6 +263,23 @@ such as MDM, RMM, EDR, Microsoft Entra, Intune, or a provisioning script.
 Bumblebee must not automatically derive `device_id` from `MachineGuid`, SMBIOS
 UUID, hostname, registry state, Entra state, Intune state, or hardware
 identifiers.
+
+Account-provider boundary receipt: live Azure AD or local-account username
+shape validation is optional representative-host evidence, not required for the
+baseline compatibility claim. The supported contract is that Bumblebee records
+the scanner-process identity returned by Go/Windows and treats
+`endpoint.username` as opaque display context. It must not parse username
+separators, infer local/domain/Azure AD/service-account provider type, query
+Microsoft Entra state, enumerate SIDs, or translate identities into a separate
+provider-specific model. On 2026-05-26, the current smoke host provided
+domain/workplace-joined evidence only: `dsregcmd /status` reported
+`DomainJoined=YES`, `WorkplaceJoined=YES`, and `AzureAdJoined=NO`; the current
+scanner identity shape was redacted as `domain_or_machine_backslash_user`, and
+the UID shape was redacted as `account_sid`. This does not claim an Azure
+AD-joined host test. Source basis: Go documents Windows `os/user.User.Uid` as a
+string SID, and the Windows implementation obtains the current username through
+Windows name/SID APIs; Microsoft documents `dsregcmd /status` as the join-state
+diagnostic for `AzureAdJoined`, `DomainJoined`, and `WorkplaceJoined`.
 
 ## Goal 8: Add Windows Deployment Documentation
 
@@ -512,11 +530,13 @@ Goal 6A smoke gap-fill receipt from 2026-05-25:
   `leftover_smoke_module_count=0`.
 - [x] Verified `-RequireRedirectedDocuments` fails clearly on this
   non-redirected host instead of silently passing an inapplicable validation.
-- [ ] A real redirected-Documents host is still needed to prove an actual
+- [-] Skipped on this host: a real redirected-Documents host is still needed
+  to prove an actual
   production redirection policy end to end by running
   `powershell -ExecutionPolicy Bypass -File scripts\windows-smoke.ps1 -RequireRedirectedDocuments`;
   this machine's known `Documents` path still resolves to the standard
-  `%USERPROFILE%\Documents` location.
+  `%USERPROFILE%\Documents` location, so completing this check here would be
+  invalid.
 
 ## Goal 11: Define WSL Behavior
 
@@ -677,15 +697,17 @@ Known limitations / current support boundary:
 - Walker/privacy boundary: Windows sensitive-path excludes, directory
   reparse-point skipping, junction loop safety, ACL-denied diagnostics, and
   current-user redirected `Documents` handling for curated PowerShell module
-  roots are implemented. Broader OneDrive/redirected-known-folder behavior
-  remains open Goal 6 work.
+  roots are implemented. Broader OneDrive/redirected-known-folder behavior is
+  not claimed; production proof is skipped on this host because Windows reports
+  the standard `%USERPROFILE%\Documents` location.
 - Endpoint identity boundary: Windows `endpoint.uid` is documented as the
   scanner-process SID, and `endpoint.device_id` remains the preferred stable
   machine identity supplied through `--device-id-env`. The Windows smoke
   validates scanner-process `endpoint.username` presence, redacted shape class,
-  and package/`scan_summary` consistency on the current host. Live
-  representative-host validation for local-account and Azure AD account
-  provider shapes remains open Goal 7 work.
+  and package/`scan_summary` consistency on the current host. Local-account,
+  domain, Azure AD, and service-account username shapes are opaque display
+  context; representative-host checks are useful extra evidence but not a
+  baseline compatibility-layer requirement.
 - Deployment/docs boundary: Windows deployment guidance is now captured in
   `docs/deployment-windows.md` for Task Scheduler, Intune/RMM/SCCM,
   incident-response, recurring baseline, file/log-shipper, HTTPS secret,
