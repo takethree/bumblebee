@@ -673,6 +673,25 @@ Hive deployment hardening receipt from 2026-05-27:
 - Raw inventory, tokens, HMAC keys, Access service secrets, hostnames,
   usernames, SIDs, and full profile paths stayed out of tracked receipts.
 
+Hive pilot verifier receipt from 2026-05-27:
+
+- Added a Hive-side redacted verifier for the per-user Windows pilot install.
+  `CheckOnly` validates local config, wrapper, DPAPI-backed local secrets,
+  configured binary, device ID presence, `/v1/ingest` target shape, baseline
+  profile, `bumblebee.exe selftest`, scheduled-task presence, last task result,
+  and Hive admin metadata reachability without sending inventory.
+- `CheckOnly` passed on this host: selftest exit code `0`, scheduled-task last
+  result `0`, admin overview/devices/runs returned `200`, all admin responses
+  used `Cache-Control: no-store`, and forbidden raw-data field matches were `0`.
+- `Scheduled` mode triggered the existing pilot scheduled task, observed task
+  completion with last result `0`, and then observed a fresh Hive run for the
+  configured device/profile with status `complete` and forbidden field matches
+  `0`.
+- The verifier uses the configured raw device ID only as an internal query
+  filter. The receipt and verifier output do not print secrets, raw inventory,
+  raw HTTP payloads, raw device IDs, usernames, SIDs, hostnames, full profile
+  paths, R2 object keys, or `summary_json`.
+
 Full smoke receipt from 2026-05-24 Windows compatibility validation:
 
 - CI-parity validation passed with the local Go toolchain: `go vet ./...`, `go test ./...`, `go test -race ./...`, Windows build, and `bumblebee.exe selftest`. Formatting was validated against a clean LF checkout-index export to avoid local CRLF working-tree noise.

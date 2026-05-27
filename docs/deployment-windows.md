@@ -238,6 +238,12 @@ scheduled task. The generated wrapper still uses the same documented
 `bumblebee.exe scan` command shape; Hive-specific gateway headers are passed
 through generic `--http-header-env` flags.
 
+The companion Hive repository also includes a pilot verifier for this deployment
+shape. Use it after bootstrapper enrollment to check the local binary, wrapper,
+scheduled task, Hive admin metadata endpoints, and a fresh completed run without
+printing secrets, raw inventory, raw device IDs, usernames, SIDs, hostnames, or
+full profile paths.
+
 The release URL passed to the Hive bootstrapper should be the operator-owned
 GitHub release download base, for example
 `https://github.com/<owner>/bumblebee/releases/download`. The bootstrapper uses
@@ -357,6 +363,8 @@ On a representative host:
 6. For HTTP deployments, confirm the receiver accepted the final
    `scan_summary` for the new `run_id`; HTTP batch counters in the summary
    describe batches observed before the summary itself was flushed.
+   Hive deployments can use the Hive repo's `scripts\verify-bumblebee-pilot.ps1`
+   to perform this check through metadata-only admin endpoints.
 7. Run the repository smoke script on development hosts when validating the
    compatibility layer itself:
 
