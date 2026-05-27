@@ -651,6 +651,28 @@ Smoke receipt from 2026-05-24 Windows HTTP sink validation:
 - The HTTP `scan_summary` had `status=complete`, `profile=project`, `http_batches_attempted=1`, `http_batches_succeeded=1`, `http_last_status=200`, and no raw received NDJSON was written to the repo.
 - The same smoke run also preserved the real-profile baseline proof: 9 roots, 3 browser extension roots, 1,042 package records, 0 findings, 5 duplicates, 4 informational diagnostics, no timeout, and no summary error.
 
+Hive deployment hardening receipt from 2026-05-27:
+
+- The companion Hive bootstrapper was validated through the real release path:
+  public GitHub release download base, Windows zip asset, `checksums.txt`
+  SHA-256 verification, `bumblebee.exe selftest`, Hive enrollment, local
+  config/secrets generation, and current-user scheduled task registration.
+- The installed wrapper delivered complete live baseline runs to Hive through
+  Bumblebee's generic HTTP sink, HMAC payload integrity, gzip, and
+  environment-backed gateway headers. Hive recorded complete run rows and
+  streamed batches before the final `scan_summary`.
+- Cloudflare Access must use a Service Auth policy for the machine service
+  token. An Allow policy returned browser sign-in HTML instead of Hive JSON
+  during validation, so this is now documented as an operator setup check.
+- Hive local uninstall and remote device disable are separate lifecycle steps:
+  uninstall removes generated local state, while device revocation marks the
+  Hive device disabled and causes later ingest attempts to fail.
+- Enrollment remains a rotated wave-token process for this phase; one-time
+  enrollment tokens and the second-machine pilot are intentionally out of this
+  receipt.
+- Raw inventory, tokens, HMAC keys, Access service secrets, hostnames,
+  usernames, SIDs, and full profile paths stayed out of tracked receipts.
+
 Full smoke receipt from 2026-05-24 Windows compatibility validation:
 
 - CI-parity validation passed with the local Go toolchain: `go vet ./...`, `go test ./...`, `go test -race ./...`, Windows build, and `bumblebee.exe selftest`. Formatting was validated against a clean LF checkout-index export to avoid local CRLF working-tree noise.

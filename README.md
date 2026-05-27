@@ -181,6 +181,9 @@ PowerShell:
 For scheduled Windows deployment, file/HTTPS output, `--device-id-env`,
 receiver gateway headers, and `--all-users` examples, see
 [docs/deployment-windows.md](docs/deployment-windows.md).
+For self-service direct HTTPS deployment, Bumblebee Hive provides a companion
+receiver and Windows bootstrapper while Bumblebee itself keeps the generic HTTP
+sink interface.
 
 ## Windows compatibility layer
 

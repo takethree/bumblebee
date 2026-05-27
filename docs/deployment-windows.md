@@ -238,6 +238,26 @@ scheduled task. The generated wrapper still uses the same documented
 `bumblebee.exe scan` command shape; Hive-specific gateway headers are passed
 through generic `--http-header-env` flags.
 
+The release URL passed to the Hive bootstrapper should be the operator-owned
+GitHub release download base, for example
+`https://github.com/<owner>/bumblebee/releases/download`. The bootstrapper uses
+the tag name, downloads the Windows zip plus `checksums.txt`, verifies SHA-256,
+then runs `bumblebee.exe selftest` before enrollment.
+
+When Hive sits behind Cloudflare Access, the machine policy must use the
+`Service Auth` action for the service token. A normal `Allow` policy can still
+return the browser sign-in HTML page to the installer instead of Hive JSON. Keep
+human/developer identity access in a separate `Allow` policy.
+
+Use one enrollment token per pilot or rollout wave. Rotate Hive's
+`ENROLLMENT_TOKEN` Worker secret after that wave completes. This keeps the
+current shared-token bootstrapper simple while limiting reuse if a token leaks.
+
+Local uninstall and remote revocation are separate operations. The bootstrapper
+`-Uninstall` mode removes generated local state, the wrapper, scheduled task,
+DPAPI-backed secrets, and installed binary. Disable the Hive device separately
+through Hive's admin endpoint or, if needed, an operator-run D1 update.
+
 ## One-shot incident response
 
 `deep` has no default roots. Always pass at least one explicit `--root`.
