@@ -244,6 +244,10 @@ scheduled task, Hive admin metadata endpoints, and a fresh completed run without
 printing secrets, raw inventory, raw device IDs, usernames, SIDs, hostnames, or
 full profile paths.
 
+For a sequenced per-user Hive pilot, follow the Hive repository's developer
+rollout runbook and keep Hive-specific operator secrets and receipts in that
+repo.
+
 The release URL passed to the Hive bootstrapper should be the operator-owned
 GitHub release download base, for example
 `https://github.com/<owner>/bumblebee/releases/download`. The bootstrapper uses

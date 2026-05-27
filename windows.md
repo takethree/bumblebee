@@ -692,6 +692,19 @@ Hive pilot verifier receipt from 2026-05-27:
   raw HTTP payloads, raw device IDs, usernames, SIDs, hostnames, full profile
   paths, R2 object keys, or `summary_json`.
 
+Hive developer rollout runbook receipt from 2026-05-26:
+
+- Added a companion Hive-side developer rollout runbook for the per-user
+  Windows pilot path. It sequences the existing release-download installer,
+  CheckOnly verifier, optional scheduled-run proof, local uninstall, remote
+  revocation, and enrollment-token rotation checklist.
+- The Bumblebee deployment doc only points to the companion Hive runbook; it
+  does not embed Hive-specific secrets, org-specific hostnames, or new scanner
+  semantics.
+- No Bumblebee scanner behavior, Windows root discovery, output schema,
+  transport behavior, installer semantics, or Hive API behavior changed for
+  this docs-only receipt.
+
 Full smoke receipt from 2026-05-24 Windows compatibility validation:
 
 - CI-parity validation passed with the local Go toolchain: `go vet ./...`, `go test ./...`, `go test -race ./...`, Windows build, and `bumblebee.exe selftest`. Formatting was validated against a clean LF checkout-index export to avoid local CRLF working-tree noise.
