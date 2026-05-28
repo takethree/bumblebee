@@ -211,38 +211,51 @@ type Finding struct {
 // current state after a matching scan_summary with status=complete has
 // arrived.
 type ScanSummary struct {
-	RecordType               string         `json:"record_type"`
-	RecordID                 string         `json:"record_id"`
-	SchemaVersion            string         `json:"schema_version"`
-	ScannerName              string         `json:"scanner_name"`
-	ScannerVersion           string         `json:"scanner_version"`
-	RunID                    string         `json:"run_id"`
-	ScanTime                 string         `json:"scan_time"`
-	EndTime                  string         `json:"end_time"`
-	Endpoint                 Endpoint       `json:"endpoint"`
-	Profile                  string         `json:"profile"`
-	Status                   string         `json:"status"`
-	Roots                    []SummaryRoot  `json:"roots,omitempty"`
-	Counts                   map[string]int `json:"counts,omitempty"`
-	PackageRecordsEmitted    int            `json:"package_records_emitted"`
-	PackageRecordsSuppressed int            `json:"package_records_suppressed,omitempty"`
-	FindingsEmitted          int            `json:"findings_emitted"`
-	Duplicates               int            `json:"duplicates"`
-	DiagnosticsCount         int            `json:"diagnostics_count"`
-	FilesConsidered          int            `json:"files_considered"`
-	TimedOut                 bool           `json:"timed_out"`
-	DurationMS               int64          `json:"duration_ms"`
-	HTTPBatchesAttempted     int            `json:"http_batches_attempted,omitempty"`
-	HTTPBatchesSucceeded     int            `json:"http_batches_succeeded,omitempty"`
-	HTTPBatchesFailed        int            `json:"http_batches_failed,omitempty"`
-	HTTPLastStatus           int            `json:"http_last_status,omitempty"`
-	Error                    string         `json:"error,omitempty"`
+	RecordType               string           `json:"record_type"`
+	RecordID                 string           `json:"record_id"`
+	SchemaVersion            string           `json:"schema_version"`
+	ScannerName              string           `json:"scanner_name"`
+	ScannerVersion           string           `json:"scanner_version"`
+	RunID                    string           `json:"run_id"`
+	ScanTime                 string           `json:"scan_time"`
+	EndTime                  string           `json:"end_time"`
+	Endpoint                 Endpoint         `json:"endpoint"`
+	Profile                  string           `json:"profile"`
+	Status                   string           `json:"status"`
+	Roots                    []SummaryRoot    `json:"roots,omitempty"`
+	Counts                   map[string]int   `json:"counts,omitempty"`
+	PackageRecordsEmitted    int              `json:"package_records_emitted"`
+	PackageRecordsSuppressed int              `json:"package_records_suppressed,omitempty"`
+	FindingsEmitted          int              `json:"findings_emitted"`
+	Duplicates               int              `json:"duplicates"`
+	DiagnosticsCount         int              `json:"diagnostics_count"`
+	FilesConsidered          int              `json:"files_considered"`
+	TimedOut                 bool             `json:"timed_out"`
+	DurationMS               int64            `json:"duration_ms"`
+	HTTPBatchesAttempted     int              `json:"http_batches_attempted,omitempty"`
+	HTTPBatchesSucceeded     int              `json:"http_batches_succeeded,omitempty"`
+	HTTPBatchesFailed        int              `json:"http_batches_failed,omitempty"`
+	HTTPLastStatus           int              `json:"http_last_status,omitempty"`
+	Catalog                  *CatalogMetadata `json:"catalog,omitempty"`
+	Error                    string           `json:"error,omitempty"`
 }
 
 // SummaryRoot is one entry in ScanSummary.Roots — path plus the root kind
 // that drove its inclusion. Recording the kind on the summary makes
 // "which population is this scan covering?" answerable without
 // re-parsing the records.
+// CatalogMetadata records the exposure catalog bundle used for a run.
+// It is only populated by managed Hive runs; normal scan remains explicit
+// and local-only.
+type CatalogMetadata struct {
+	ReleaseID    string `json:"release_id"`
+	BundleSHA256 string `json:"bundle_sha256"`
+	Source       string `json:"source,omitempty"`
+	PublishedAt  string `json:"published_at,omitempty"`
+	SyncedAt     string `json:"synced_at,omitempty"`
+	EntryCount   int    `json:"entry_count,omitempty"`
+}
+
 type SummaryRoot struct {
 	Path string `json:"path"`
 	Kind string `json:"kind"`
@@ -329,6 +342,7 @@ func (s ScanSummary) StableID() string {
 		strconv.Itoa(s.HTTPBatchesSucceeded),
 		strconv.Itoa(s.HTTPBatchesFailed),
 		strconv.Itoa(s.HTTPLastStatus),
+		catalogIDPart(s.Catalog),
 		s.Error,
 	})
 }
@@ -384,6 +398,20 @@ func canonicalCounts(counts map[string]int) string {
 		parts = append(parts, key+"\x1f"+strconv.Itoa(counts[key]))
 	}
 	return joinWithUnitSeparator(parts)
+}
+
+func catalogIDPart(c *CatalogMetadata) string {
+	if c == nil {
+		return ""
+	}
+	return joinWithUnitSeparator([]string{
+		c.ReleaseID,
+		c.BundleSHA256,
+		c.Source,
+		c.PublishedAt,
+		c.SyncedAt,
+		strconv.Itoa(c.EntryCount),
+	})
 }
 
 func joinWithUnitSeparator(parts []string) string {

@@ -9,6 +9,7 @@
 //
 //	bumblebee scan     [--profile P] ...    run a scan and emit NDJSON records
 //	bumblebee roots    [--profile P] ...    print the resolved scan roots and exit
+//	bumblebee hive     <command>            join Hive, sync catalogs, or run managed scans
 //	bumblebee selftest [flags]              scan embedded fixtures and verify detection
 //	bumblebee version                       print version and exit
 //
@@ -80,6 +81,8 @@ func main() {
 		os.Exit(runScan(os.Args[2:]))
 	case "roots":
 		os.Exit(runRoots(os.Args[2:]))
+	case "hive":
+		os.Exit(runHive(os.Args[2:]))
 	case "selftest":
 		os.Exit(runSelftest(os.Args[2:]))
 	case "version", "--version", "-version":
@@ -99,6 +102,7 @@ func usage(w io.Writer) {
 usage:
   bumblebee scan     [flags]   run a scan and emit NDJSON records
   bumblebee roots    [flags]   print the resolved scan roots and exit
+  bumblebee hive     <command> join Hive, sync catalogs, or run managed scans
   bumblebee selftest [flags]   scan embedded fixtures and verify detection
   bumblebee version            print version and exit
 
@@ -178,6 +182,10 @@ func registerScanFlags(fs *flag.FlagSet, o *scanOpts) {
 
 // runScan executes the scan subcommand. Returns the process exit code.
 func runScan(args []string) int {
+	return runScanWithCatalogMetadata(args, nil)
+}
+
+func runScanWithCatalogMetadata(args []string, catalogMeta *model.CatalogMetadata) int {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
 	var o scanOpts
 	registerScanFlags(fs, &o)
@@ -338,6 +346,7 @@ func runScan(args []string) int {
 			HTTPBatchesSucceeded:     sinkStats.HTTPBatchesSucceeded,
 			HTTPBatchesFailed:        sinkStats.HTTPBatchesFailed,
 			HTTPLastStatus:           sinkStats.HTTPLastStatus,
+			Catalog:                  catalogMeta,
 			Error:                    errMsg,
 		}); err != nil {
 			emitter.Diag("error", "", "emit scan_summary: "+err.Error())

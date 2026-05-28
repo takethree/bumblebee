@@ -1,0 +1,425 @@
+version: 2
+
+goal:
+  title: "Hive Catalog Sync"
+  slug: "hive-catalog-sync"
+  kind: existing_plan
+  tranche: "Validate and implement the first cross-repo Hive-managed catalog sync vertical slice."
+  status: done
+  oracle:
+    signal: "A local/test Hive publishes a validated catalog, Bumblebee joins and syncs it, hive run emits findings with catalog metadata, and Hive stores/displays the resulting finding."
+    cadence: "after each Worker package and at final audit"
+    final_proof: "Passing Bumblebee tests, Hive tests, cross-repo integration proof, docs, and final audit receipt."
+  intake:
+    original_request: "$goalbuddy:goal-prep"
+    interpreted_outcome: "Prepare a GoalBuddy board for implementing Hive-managed exposure catalog sync across Bumblebee and Bumblebee Hive."
+    input_shape: existing_plan
+    audience: "Bumblebee operators, endpoint users, and maintainers"
+    authority: approved
+    proof_type: test
+    completion_proof: "Join, sync, cache fallback, hive run, Hive catalog publishing, and findings visibility are implemented and verified."
+    likely_misfire: "Implementing only a Windows wrapper sync, silently enabling bundled threat_intel, or making normal scans network-dependent."
+    blind_spots_considered:
+      - "Hive support must be cross-platform in Bumblebee."
+      - "Hive should auto-sync upstream threat_intel."
+      - "Bumblebee should use last-known-good catalog cache on sync failure."
+      - "No valid cache means hive run fails rather than silently omitting findings."
+      - "Normal bumblebee scan semantics should remain explicit and unchanged."
+      - "Catalog provenance and hash metadata should be visible enough for operators to know what ran."
+    existing_plan_facts:
+      - "Add Bumblebee commands: hive join, hive catalog sync, hive run."
+      - "Add Hive catalog publishing and current catalog endpoints."
+      - "Add local protected config/secrets for Windows, macOS, and Linux."
+      - "Hive auto-syncs upstream Bumblebee threat_intel and keeps last-known-good on failure."
+      - "Bumblebee sync verifies manifest/file hashes and parses catalogs before activating the cache."
+      - "Hive run syncs first, falls back to cache, scans with --exposure-catalog equivalent behavior, and uploads to Hive."
+      - "Add scan_summary catalog metadata for Hive runs if Judge approves the schema-compatible shape."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: unavailable
+    url: "http://goalbuddy.localhost:41737/hive-catalog-sync/"
+    last_error: "npx goalbuddy board failed before serving the board because catalog fetch returned HTTP 404 for https://raw.githubusercontent.com/tolibear/goalbuddy/main/extend/catalog.json. File-backed board remains usable."
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: medium
+    objective: "Map the current Bumblebee and Hive implementation surfaces relevant to catalog sync without changing code."
+    inputs:
+      - "F:/bumblebee"
+      - "F:/bumblebee-hive"
+      - "Approved proposed plan from chat"
+    constraints:
+      - "Read-only."
+      - "Do not implement, stage, commit, push, deploy, or mutate either repo."
+      - "Record exact files, commands, schemas, and tests the Worker will need."
+    expected_output:
+      - "Current-state findings for Bumblebee CLI/config/catalog/schema surfaces."
+      - "Current-state findings for Hive routes/storage/installer/admin UI surfaces."
+      - "Risks or missing decisions."
+      - "Recommended first Worker slice."
+    receipt:
+      result: done
+      path: "docs/goals/hive-catalog-sync/notes/T001-scout.md"
+      summary: "Mapped current Bumblebee and Hive surfaces for catalog sync. Bumblebee has explicit exposure-catalog loading, findings emission, and HTTP transport but no Hive command/config/cache layer. Hive has enrollment, signed ingest, normalized findings storage, and admin visibility but no catalog publishing/storage endpoint. Recommended a local/test-backed vertical slice covering Hive catalog publishing, Bumblebee join/sync/run with last-known-good cache, and findings ingestion proof."
+      evidence:
+        - "docs/goals/hive-catalog-sync/notes/T001-scout.md"
+        - "cmd/bumblebee/main.go"
+        - "internal/exposure/exposure.go"
+        - "internal/scanner/scanner.go"
+        - "internal/output/httpsink.go"
+        - "F:/bumblebee-hive/src/index.ts"
+        - "F:/bumblebee-hive/migrations/0001_init.sql"
+        - "F:/bumblebee-hive/migrations/0005_normalized_inventory.sql"
+      risks:
+        - "Catalog metadata on scan_summary would be an additive public schema change and needs Judge approval."
+        - "Normal bumblebee scan must remain explicit and local-only."
+        - "Config/cache must be cross-platform, not Windows-only."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Validate the planned cross-repo design and choose the largest safe first implementation slice."
+    inputs:
+      - "T001 receipt."
+      - "docs/goals/hive-catalog-sync/goal.md"
+      - "Current Bumblebee and Hive source evidence."
+    constraints:
+      - "Read-only."
+      - "Preserve the user's approved command shape unless source evidence proves it unsafe."
+      - "Reject Windows-only implementation."
+      - "Reject hidden normal-scan network behavior."
+    expected_output:
+      - "approve | revise | block"
+      - "Exact first Worker objective."
+      - "allowed_files across both repos."
+      - "verify commands for both repos."
+      - "stop_if conditions."
+    receipt:
+      result: done
+      decision: approve
+      path: "docs/goals/hive-catalog-sync/notes/T002-judge.md"
+      summary: "Approved a bounded first Worker slice: implement local/test-backed Hive catalog publishing plus Bumblebee hive join, catalog sync, and hive run with last-known-good cache fallback. Normal scan remains unchanged; no deploy, remote migration, or production secret work is included."
+      exact_first_worker_objective: "Implement a local/test-backed Hive catalog sync vertical slice across Bumblebee and Hive."
+      allowed_files:
+        bumblebee:
+          - "cmd/bumblebee/main.go"
+          - "cmd/bumblebee/main_test.go"
+          - "cmd/bumblebee/hive.go"
+          - "cmd/bumblebee/hive_test.go"
+          - "internal/hive/**"
+          - "internal/model/model.go"
+          - "internal/model/model_test.go"
+          - "docs/schema/v0.1.0/scan-summary.schema.json"
+          - "README.md"
+          - "docs/transport.md"
+          - "docs/goals/hive-catalog-sync/**"
+        hive:
+          - "F:/bumblebee-hive/src/index.ts"
+          - "F:/bumblebee-hive/test/ingest.test.ts"
+          - "F:/bumblebee-hive/test/e2e.test.ts"
+          - "F:/bumblebee-hive/migrations/0009_catalog_releases.sql"
+          - "F:/bumblebee-hive/README.md"
+          - "F:/bumblebee-hive/docs/goals/**"
+      verify:
+        - "go test -count=1 ./cmd/bumblebee ./internal/hive ./internal/exposure ./internal/scanner ./internal/output ./internal/model"
+        - "go test -count=1 ./..."
+        - "npm test in F:/bumblebee-hive"
+        - "npm run build in F:/bumblebee-hive"
+      stop_if:
+        - "Need to print or commit raw Hive Access secrets, HMAC keys, enrollment tokens, device IDs, local usernames, hostnames, SIDs, or full local profile paths."
+        - "Need production Cloudflare deploy, remote D1 migration, remote secret mutation, or GitHub release mutation."
+        - "Normal bumblebee scan starts syncing or fetching from Hive."
+        - "Verification fails twice for the same underlying cause."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement a local/test-backed Hive catalog sync vertical slice across Bumblebee and Hive."
+    allowed_files:
+      - "cmd/bumblebee/main.go"
+      - "cmd/bumblebee/main_test.go"
+      - "cmd/bumblebee/hive.go"
+      - "cmd/bumblebee/hive_test.go"
+      - "internal/hive/**"
+      - "internal/model/model.go"
+      - "internal/model/model_test.go"
+      - "docs/schema/v0.1.0/scan-summary.schema.json"
+      - "README.md"
+      - "docs/transport.md"
+      - "docs/goals/hive-catalog-sync/**"
+      - "F:/bumblebee-hive/src/index.ts"
+      - "F:/bumblebee-hive/test/ingest.test.ts"
+      - "F:/bumblebee-hive/test/e2e.test.ts"
+      - "F:/bumblebee-hive/migrations/0009_catalog_releases.sql"
+      - "F:/bumblebee-hive/README.md"
+    verify:
+      - "go test -count=1 ./cmd/bumblebee ./internal/hive ./internal/exposure ./internal/scanner ./internal/output ./internal/model"
+      - "go test -count=1 ./..."
+      - "npm test in F:/bumblebee-hive"
+      - "npm run build in F:/bumblebee-hive"
+    stop_if:
+      - "T002 has not approved a bounded implementation slice."
+      - "Need to expose or print secrets, raw local identifiers, hostnames, usernames, SIDs, or full local profile paths."
+      - "Need production deploy, migration, push, or secret changes without explicit user approval."
+      - "Need files outside T002 allowed_files."
+      - "Verification fails twice for the same underlying cause."
+    receipt:
+      result: done
+      path: "docs/goals/hive-catalog-sync/notes/T003-worker.md"
+      summary: "Implemented Hive catalog publishing/current endpoints, D1 catalog migration, Bumblebee hive join/catalog sync/run commands, local config/cache/secrets handling, LKG cache fallback, optional Hive catalog scan_summary metadata, docs, and tests. Normal bumblebee scan remains explicit and does not fetch Hive data."
+      evidence:
+        - "cmd/bumblebee/hive.go"
+        - "internal/hive/hive.go"
+        - "internal/hive/hive_test.go"
+        - "internal/model/model.go"
+        - "docs/schema/v0.1.0/scan-summary.schema.json"
+        - "F:/bumblebee-hive/src/index.ts"
+        - "F:/bumblebee-hive/migrations/0009_catalog_releases.sql"
+        - "F:/bumblebee-hive/test/ingest.test.ts"
+      changed_files:
+        - "README.md"
+        - "cmd/bumblebee/main.go"
+        - "cmd/bumblebee/hive.go"
+        - "docs/schema/v0.1.0/scan-summary.schema.json"
+        - "docs/transport.md"
+        - "internal/hive/hive.go"
+        - "internal/hive/hive_test.go"
+        - "internal/model/model.go"
+        - "F:/bumblebee-hive/README.md"
+        - "F:/bumblebee-hive/src/index.ts"
+        - "F:/bumblebee-hive/test/ingest.test.ts"
+        - "F:/bumblebee-hive/migrations/0009_catalog_releases.sql"
+        - "docs/goals/hive-catalog-sync/notes/T003-worker.md"
+        - "docs/goals/hive-catalog-sync/state.yaml"
+      commands:
+        - cmd: "gofmt -w cmd/bumblebee/main.go cmd/bumblebee/hive.go internal/hive/hive.go internal/hive/hive_test.go internal/model/model.go"
+          status: pass
+        - cmd: "go test -count=1 ./cmd/bumblebee ./internal/hive ./internal/exposure ./internal/scanner ./internal/output ./internal/model"
+          status: pass
+        - cmd: "go test -count=1 ./..."
+          status: pass
+        - cmd: "go run ./cmd/bumblebee hive help"
+          status: pass
+        - cmd: "npm test"
+          status: pass
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      verification:
+        - "go test -count=1 ./cmd/bumblebee ./internal/hive ./internal/exposure ./internal/scanner ./internal/output ./internal/model"
+        - "go test -count=1 ./..."
+        - "go run ./cmd/bumblebee hive help"
+        - "npm test in F:/bumblebee-hive"
+        - "npm run build in F:/bumblebee-hive"
+        - "git diff --check in F:/bumblebee"
+        - "git diff --check in F:/bumblebee-hive"
+      remaining_gap: "T004 still needs a dedicated cross-repo integration proof that publishes a Hive catalog, runs bumblebee hive run, normalizes the uploaded batch, and verifies finding visibility."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Run cross-repo integration verification for the implemented Hive catalog sync path."
+    allowed_files:
+      - "cmd/bumblebee/hive_test.go"
+      - "F:/bumblebee-hive/test/e2e.test.ts"
+      - "docs/goals/hive-catalog-sync/**"
+    verify:
+      - "Cross-repo local integration proof for publish -> sync -> hive run -> ingest -> finding visibility"
+    stop_if:
+      - "Implementation slice is not complete."
+      - "Integration verification would require printing secrets or raw device identifiers."
+      - "Local credentials or services are unavailable; record the precise skipped condition and preserve test-backed proof."
+    receipt:
+      result: done
+      path: "docs/goals/hive-catalog-sync/notes/T004-integration.md"
+      summary: "Added and ran a cross-repo local integration proof. The e2e test builds Bumblebee, starts a local Hive Worker server, runs bumblebee hive join, publishes a catalog, runs bumblebee hive catalog sync, runs bumblebee hive run, normalizes the uploaded batch, verifies the finding through Hive admin findings, and verifies scan_summary catalog metadata."
+      changed_files:
+        - "F:/bumblebee-hive/test/e2e.test.ts"
+        - "docs/goals/hive-catalog-sync/notes/T004-integration.md"
+        - "docs/goals/hive-catalog-sync/state.yaml"
+      commands:
+        - cmd: "BUMBLEBEE_E2E=1 BUMBLEBEE_REPO=F:/bumblebee GO_EXE=%LOCALAPPDATA%/CodexTools/go1.26.3/go/bin/go.exe npm run test:e2e"
+          status: pass
+        - cmd: "go test -count=1 ./..."
+          status: pass
+        - cmd: "npm test"
+          status: pass
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "git diff --check in F:/bumblebee and F:/bumblebee-hive"
+          status: pass
+      evidence:
+        - "F:/bumblebee-hive/test/e2e.test.ts"
+        - "docs/goals/hive-catalog-sync/notes/T004-integration.md"
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the Hive catalog sync tranche satisfies the original cross-repo outcome."
+    inputs:
+      - "All done task receipts."
+      - "Last verification."
+      - "Current dirty diffs in F:/bumblebee and F:/bumblebee-hive."
+      - "docs/goals/hive-catalog-sync/goal.md"
+    constraints:
+      - "Read-only."
+      - "Reject completion if any required Worker task is still queued or active."
+      - "Reject completion if normal scan semantics changed unintentionally."
+      - "Reject completion if cross-platform support is not represented in tests or docs."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: not_complete
+      path: "docs/goals/hive-catalog-sync/notes/T999-audit-1.md"
+      summary: "Audit rejected completion because Hive manual catalog publishing and cross-repo sync/run proof are implemented, but configured upstream auto-sync from Bumblebee threat_intel is still missing."
+      missing_evidence:
+        - "No scheduled or admin-triggered upstream threat_intel sync exists in Hive."
+      next_task: T005
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement configurable Hive upstream catalog sync from Bumblebee threat_intel."
+    allowed_files:
+      - "F:/bumblebee-hive/src/index.ts"
+      - "F:/bumblebee-hive/test/ingest.test.ts"
+      - "F:/bumblebee-hive/README.md"
+      - "docs/goals/hive-catalog-sync/**"
+    verify:
+      - "npm test in F:/bumblebee-hive"
+      - "npm run build in F:/bumblebee-hive"
+      - "BUMBLEBEE_E2E=1 BUMBLEBEE_REPO=F:/bumblebee GO_EXE=%LOCALAPPDATA%/CodexTools/go1.26.3/go/bin/go.exe npm run test:e2e"
+    stop_if:
+      - "Need production deploy, remote migration, or real credentials."
+      - "Need to print or persist secrets, raw device IDs, usernames, hostnames, SIDs, or local paths."
+      - "Implementation would hard-code Take3-specific behavior."
+      - "Verification fails twice for the same underlying cause."
+    receipt:
+      result: done
+      path: "docs/goals/hive-catalog-sync/notes/T005-upstream-sync.md"
+      summary: "Implemented configurable Hive upstream catalog sync from Bumblebee threat_intel through an admin-triggered endpoint and opt-in scheduled sync. Upstream files are fetched from a GitHub contents-style listing, validated through the same catalog publish path, and promoted as the current Hive catalog."
+      changed_files:
+        - "F:/bumblebee-hive/src/index.ts"
+        - "F:/bumblebee-hive/test/ingest.test.ts"
+        - "F:/bumblebee-hive/README.md"
+        - "docs/goals/hive-catalog-sync/notes/T005-upstream-sync.md"
+        - "docs/goals/hive-catalog-sync/state.yaml"
+      commands:
+        - cmd: "npm test"
+          status: pass
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "BUMBLEBEE_E2E=1 BUMBLEBEE_REPO=F:/bumblebee GO_EXE=%LOCALAPPDATA%/CodexTools/go1.26.3/go/bin/go.exe npm run test:e2e"
+          status: pass
+        - cmd: "go test -count=1 ./..."
+          status: pass
+        - cmd: "git diff --check in F:/bumblebee and F:/bumblebee-hive"
+          status: pass
+      evidence:
+        - "F:/bumblebee-hive/src/index.ts"
+        - "F:/bumblebee-hive/test/ingest.test.ts"
+        - "F:/bumblebee-hive/README.md"
+        - "docs/goals/hive-catalog-sync/notes/T005-upstream-sync.md"
+  - id: T006
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Final audit after upstream catalog sync closure."
+    inputs:
+      - "All done task receipts."
+      - "Last verification."
+      - "Current dirty diffs in F:/bumblebee and F:/bumblebee-hive."
+      - "docs/goals/hive-catalog-sync/goal.md"
+    constraints:
+      - "Read-only."
+      - "Reject completion if any required Worker task is still queued or active."
+      - "Reject completion if normal scan semantics changed unintentionally."
+      - "Reject completion if cross-platform support is not represented in tests or docs."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      path: "docs/goals/hive-catalog-sync/notes/T006-final-audit.md"
+      summary: "Final audit proves the full Hive catalog sync tranche: join, explicit sync, hive run, LKG fallback, Hive catalog publishing, upstream threat_intel sync, finding visibility, catalog metadata, normal scan isolation, and verification all pass."
+      prompt_to_artifact_checklist:
+        - requirement: "Bumblebee can join a Hive."
+          evidence: "cmd/bumblebee/hive.go implements hive join; e2e runs bumblebee hive join against local Hive /v1/enroll."
+        - requirement: "Bumblebee can sync Hive catalog data."
+          evidence: "cmd/bumblebee/hive.go implements hive catalog sync; e2e runs the command against local Hive /v1/catalog/current."
+        - requirement: "Bumblebee can run with Hive catalog data and upload to Hive."
+          evidence: "hive run uses cached catalog and existing HTTP sink; e2e verifies upload, normalization, finding visibility, and scan_summary catalog metadata."
+        - requirement: "Last-known-good fallback and no-cache failure exist."
+          evidence: "cmd/bumblebee/hive.go implements fallback/failure paths; internal/hive/hive_test.go covers cache validation and failed promotion."
+        - requirement: "Hive publishes and serves validated catalogs."
+          evidence: "src/index.ts implements catalog endpoints; test/ingest.test.ts verifies valid publish/fetch and invalid/disabled rejection."
+        - requirement: "Hive auto-syncs upstream Bumblebee threat_intel."
+          evidence: "src/index.ts implements admin-triggered and opt-in scheduled upstream sync; tests mock GitHub contents listing and raw file fetch."
+        - requirement: "Normal scan semantics remain explicit and unchanged."
+          evidence: "runScan passes nil catalog metadata; Hive network sync calls are only in cmd/bumblebee/hive.go."
+        - requirement: "No Take3-specific behavior or secrets."
+          evidence: "Search found no Take3-specific strings in Bumblebee changes; Hive uses generic/example/test values only."
+      residual_risk:
+        - "Native keychain/DPAPI/secret-service storage could harden local Hive secrets later; current slice uses local restricted files and never prints or commits secrets."
+        - "Remote deploy, remote migration, release packaging, commit, and push were outside this goal run."
+
+checks:
+  dirty_fingerprint: "goal prep plus T001/T002 receipts plus T003/T005 implementation plus T004 integration proof plus T999 audit"
+  last_verification:
+    result: passed
+    task: T006
+    commands:
+      - "go test -count=1 ./cmd/bumblebee ./internal/hive ./internal/exposure ./internal/scanner ./internal/output ./internal/model"
+      - "go test -count=1 ./..."
+      - "go run ./cmd/bumblebee hive help"
+      - "BUMBLEBEE_E2E=1 BUMBLEBEE_REPO=F:/bumblebee GO_EXE=%LOCALAPPDATA%/CodexTools/go1.26.3/go/bin/go.exe npm run test:e2e"
+      - "npm test in F:/bumblebee-hive"
+      - "npm run build in F:/bumblebee-hive"
+      - "git diff --check in F:/bumblebee"
+      - "git diff --check in F:/bumblebee-hive"

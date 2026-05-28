@@ -67,6 +67,19 @@ HTTP behavior:
   `http_batches_failed`, and `http_last_status` report delivery results seen
   by the sink.
 
+### Hive-managed transport
+
+`bumblebee hive run` is a compatibility layer over the normal HTTP sink. It
+loads Hive config written by `bumblebee hive join`, syncs the current Hive
+catalog, then invokes the same scan transport with HMAC auth, Cloudflare Access
+service-token headers, gzip, and the saved Hive device ID.
+
+`bumblebee hive join` reuses a valid local config by default so rerunning an
+installer does not create duplicate Hive devices. It enrolls only when no
+config exists or when `--new-device` is passed. New enrollments can be marked
+with `--environment production|test`; Hive stores that label and defaults
+operator views to production data.
+
 ## Exact HTTP wire contract
 
 Every request uses:
@@ -167,6 +180,12 @@ For `--findings-only` runs, `scan_summary.package_records_emitted` can be `0`
 while `package_records_suppressed` is positive. That still reflects a valid
 run shape; it simply means package records were intentionally withheld from the
 records sink.
+
+Hive-managed runs may include optional `scan_summary.catalog` metadata. This
+metadata records the Hive catalog release id, bundle hash, source label,
+publish/sync times, and entry count used for that run. Normal `bumblebee scan`
+does not fetch Hive data or add catalog metadata unless a Hive command invokes
+the scan path with a synced catalog.
 
 ## Why no direct object-storage sink
 

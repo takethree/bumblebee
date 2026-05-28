@@ -64,6 +64,19 @@
     "http_batches_succeeded": { "type": "integer", "minimum": 0 },
     "http_batches_failed": { "type": "integer", "minimum": 0 },
     "http_last_status": { "type": "integer", "minimum": 0 },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release_id", "bundle_sha256"],
+      "properties": {
+        "release_id": { "type": "string" },
+        "bundle_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "source": { "type": "string" },
+        "published_at": { "type": "string", "format": "date-time" },
+        "synced_at": { "type": "string", "format": "date-time" },
+        "entry_count": { "type": "integer", "minimum": 0 }
+      }
+    },
     "error": { "type": "string" }
   }
 }

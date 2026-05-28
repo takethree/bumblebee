@@ -154,6 +154,38 @@ of `*.json` catalogs (merged non-recursively, all files must share
 suppresses package records while keeping findings. `bumblebee scan --help`
 lists every flag.
 
+### Hive-managed catalog runs
+
+When Bumblebee is enrolled with a Bumblebee Hive receiver, use the Hive command
+group instead of changing normal `scan` behavior:
+
+```sh
+bumblebee hive join \
+  --base-url https://hive.example.com \
+  --access-client-id-env BUMBLEBEE_ACCESS_CLIENT_ID \
+  --access-client-secret-env BUMBLEBEE_ACCESS_CLIENT_SECRET \
+  --enrollment-token-env BUMBLEBEE_ENROLLMENT_TOKEN \
+  --environment production
+
+bumblebee hive catalog sync
+
+bumblebee hive run --profile baseline
+```
+
+`hive join` is idempotent by default. If local Hive config already exists, it
+reuses the saved device ID and HMAC key instead of enrolling another device;
+the enrollment token is only required for first join or `--new-device`.
+Use `--environment test` for smoke-test or installer-validation devices so
+Hive can keep them out of production operator views. Changing an existing
+device's environment requires an explicit `--new-device` enrollment.
+
+`hive catalog sync` fetches Hive's current exposure catalog, verifies file
+hashes, parses the downloaded catalogs with the same validation used by
+`--exposure-catalog`, and promotes the result as the last-known-good cache.
+`hive run` syncs first, falls back to that cache if Hive is temporarily
+unreachable, and fails if no valid cache exists. Plain `bumblebee scan` remains
+explicit: it only uses an exposure catalog when `--exposure-catalog` is passed.
+
 ### Windows quick start
 
 Build or install `bumblebee.exe`, then use the same profiles from

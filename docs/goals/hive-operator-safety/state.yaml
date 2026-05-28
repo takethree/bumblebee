@@ -1,0 +1,359 @@
+version: 2
+goal:
+  slug: hive-operator-safety
+  title: Hive Operator Safety
+  status: active
+  created_at: "2026-05-28"
+  updated_at: "2026-05-28"
+  mode: existing_plan
+  objective: "Implement operator-safety hardening across Bumblebee and Bumblebee Hive so test data cannot be mistaken for production compromise evidence."
+  oracle:
+    type: test_demo
+    signal: "Local and live checks prove installer uses hive run, default admin views show production only, test findings require explicit test filtering, purge removes test devices and related data, and join is idempotent by default."
+    final_proof: "A final audit receipt confirms local and live verification passed, default production findings are clean, a test fixture finding is isolated to environment=test, purge removes the test device data, installer uses hive run, join is idempotent, and both repos are committed/pushed."
+  completion_proof:
+    - "Bumblebee Go tests pass."
+    - "Hive unit/E2E/build tests pass."
+    - "Cross-repo E2E proves test fixture findings are isolated from production views."
+    - "Live Hive deployment has exactly the intended production device state after purge and smoke verification."
+  constraints:
+    - "Do not print or commit secrets, HMAC keys, enrollment tokens, raw object keys, local usernames, hostnames, SIDs, or full local profile paths."
+    - "Do not rely on direct D1 deletes as the durable operator workflow."
+    - "Keep Hive organization-neutral and open-source friendly."
+    - "Do not change normal Bumblebee scan semantics; Hive-managed catalog sync belongs to hive run."
+  likely_misfire: "Hiding test rows in the UI or manually cleaning the current database without adding durable product safeguards."
+  intake:
+    original_request: "okay come up with a plan"
+    interpreted_outcome: "Prepare and execute the Hive operator-safety hardening plan after a test finding appeared like real compromise evidence."
+    input_shape: existing_plan
+    authority: requested
+    proof_type: test_demo
+    completion_proof: "Bumblebee and Hive tests pass, cross-repo E2E proves test finding isolation and purge, live Hive verification shows production views clean, installer uses scheduled hive run, and final git state is committed and pushed."
+    audience: "Hive operator and future developers installing Bumblebee on Windows workstations."
+    existing_plan_facts:
+      - "Windows installer should use bumblebee hive join and scheduled bumblebee hive run."
+      - "Hive should support production/test device environment isolation."
+      - "Admin/UI views should default to production data."
+      - "Hive should provide a guarded purge path for stale/test devices."
+      - "Bumblebee hive join should reuse existing local identity unless a new device is explicitly requested."
+      - "Live verification should prove production findings stay clean."
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+active_task: T009
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    objective: "Map the current dirty cross-repo state, installer path, Hive admin data model, and live safety baseline without changing code."
+    inputs:
+      - "F:/bumblebee"
+      - "F:/bumblebee-hive"
+      - "docs/goals/hive-operator-safety/goal.md"
+      - "The existing plan facts in this board."
+    constraints:
+      - "Read-only only."
+      - "Do not print secrets, raw object keys, full device IDs, usernames, hostnames, SIDs, or full local profile paths."
+      - "Redact device IDs to prefixes in receipts."
+    expected_output:
+      - "Current dirty-file map for both repos."
+      - "Exact implementation surfaces for installer, join, enroll, admin filters, purge/retention, and E2E tests."
+      - "Live Hive baseline summary: production device count, findings count, and whether any test/stale data remains, all redacted."
+      - "Risks or plan corrections before implementation."
+    receipt:
+      result: done
+      note: notes/T001-scout-baseline.md
+      summary: "Mapped the dirty cross-repo state, installer/join/enroll/admin/purge surfaces, and live Hive baseline. Live Hive is clean now: one active current device, zero findings, and latest current run complete. Durable safety gaps remain in installer, environment isolation, join idempotency, and purge workflow."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    objective: "Validate or adjust the existing operator-safety plan into the largest safe Worker slices."
+    inputs:
+      - "T001 receipt."
+      - "docs/goals/hive-operator-safety/goal.md"
+      - "Current git status for both repos."
+    constraints:
+      - "Read-only only."
+      - "Preserve the core outcome: no test finding can look like a production compromise."
+    expected_output:
+      - "approved | needs_revision"
+      - "Exact Worker sequence."
+      - "Allowed files for each Worker."
+      - "Verification commands."
+      - "Stop conditions."
+    receipt:
+      result: done
+      note: notes/T002-judge-plan.md
+      decision: "approved_with_sequence_adjustment"
+      full_outcome_complete: false
+      summary: "Validated the plan and adjusted the sequence: implement Hive production/test environment isolation first, then Bumblebee join idempotency/environment controls, then installer, purge, verification, live deploy, and commit/push."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Update the Windows installer and verification script to install, enroll, schedule, and verify the new Bumblebee Hive compatibility-layer path."
+    allowed_files:
+      - "F:/bumblebee-hive/scripts/install-bumblebee.ps1"
+      - "F:/bumblebee-hive/scripts/verify-bumblebee-pilot.ps1"
+      - "F:/bumblebee-hive/README.md"
+      - "F:/bumblebee-hive/docs/developer-rollout-runbook.md"
+      - "F:/bumblebee-hive/test/e2e.test.ts"
+      - "F:/bumblebee/docs/goals/hive-operator-safety/state.yaml"
+      - "F:/bumblebee/docs/goals/hive-operator-safety/notes/T003-installer-hive-path.md"
+    verify:
+      - "cd F:/bumblebee-hive; npm test"
+      - "cd F:/bumblebee-hive; npm run build"
+    stop_if:
+      - "Installer needs a new release artifact or external distribution decision."
+      - "Required changes touch files outside allowed_files."
+      - "The installer cannot use the current Bumblebee hive commands without a Bumblebee-side change."
+    receipt:
+      result: done
+      note: notes/T003-installer-hive-path.md
+      changed_files:
+        - "F:/bumblebee-hive/scripts/install-bumblebee.ps1"
+        - "F:/bumblebee-hive/scripts/verify-bumblebee-pilot.ps1"
+        - "F:/bumblebee-hive/README.md"
+        - "F:/bumblebee-hive/docs/developer-rollout-runbook.md"
+        - "F:/bumblebee-hive/test/e2e.test.ts"
+        - "F:/bumblebee/docs/goals/hive-operator-safety/state.yaml"
+        - "F:/bumblebee/docs/goals/hive-operator-safety/notes/T003-installer-hive-path.md"
+      commands:
+        - cmd: "PowerShell parser check for scripts/install-bumblebee.ps1"
+          status: pass
+        - cmd: "PowerShell parser check for scripts/verify-bumblebee-pilot.ps1"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npm test"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npm run build"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; $env:BUMBLEBEE_E2E='1'; $env:BUMBLEBEE_REPO='F:\\bumblebee'; $env:GO_EXE=\"$env:LOCALAPPDATA\\CodexTools\\go1.26.3\\go\\bin\\go.exe\"; npm run test:e2e"
+          status: pass
+      summary: "Updated the Windows installer/verifier to use Bumblebee hive join/run, Hive config/secrets, cache roots, environment-aware checks, and E2E coverage for real enrollment, rerun identity reuse, catalog publish, and generated-wrapper Hive run."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Implement durable Hive device environment isolation and default production-only admin views."
+    allowed_files:
+      - "F:/bumblebee-hive/src/index.ts"
+      - "F:/bumblebee-hive/public/admin/index.html"
+      - "F:/bumblebee-hive/public/admin/app.js"
+      - "F:/bumblebee-hive/migrations"
+      - "F:/bumblebee-hive/migrations/0010_device_environment.sql"
+      - "F:/bumblebee-hive/test/ingest.test.ts"
+      - "F:/bumblebee-hive/test/admin-url-state.test.ts"
+      - "F:/bumblebee-hive/test/e2e.test.ts"
+      - "F:/bumblebee-hive/README.md"
+    verify:
+      - "cd F:/bumblebee-hive; npm test"
+      - "cd F:/bumblebee-hive; npm run build"
+    stop_if:
+      - "Existing data migration cannot default old devices safely."
+      - "UI route state would require redesign beyond environment filtering."
+      - "Required changes touch files outside allowed_files."
+    receipt:
+      result: done
+      note: notes/T004-hive-environment-isolation.md
+      changed_files:
+        - "F:/bumblebee-hive/migrations/0010_device_environment.sql"
+        - "F:/bumblebee-hive/src/index.ts"
+        - "F:/bumblebee-hive/public/admin/index.html"
+        - "F:/bumblebee-hive/public/admin/app.js"
+        - "F:/bumblebee-hive/test/ingest.test.ts"
+        - "F:/bumblebee-hive/test/admin-url-state.test.ts"
+        - "F:/bumblebee-hive/README.md"
+      commands:
+        - cmd: "cd F:/bumblebee-hive; npm test"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npm run build"
+          status: pass
+      summary: "Implemented Hive production/test device environment isolation, production-default admin views, URL-backed admin environment selection, enrollment environment validation, and tests/docs. Hive npm test and build pass."
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Make Bumblebee hive join idempotent by default and add explicit environment/new-device controls."
+    allowed_files:
+      - "F:/bumblebee/cmd/bumblebee/hive.go"
+      - "F:/bumblebee/internal/hive"
+      - "F:/bumblebee/internal/hive/hive.go"
+      - "F:/bumblebee/internal/hive/hive_test.go"
+      - "F:/bumblebee/README.md"
+      - "F:/bumblebee/docs/transport.md"
+      - "F:/bumblebee-hive/test/e2e.test.ts"
+    verify:
+      - "cd F:/bumblebee; $env:GOEXPERIMENT=''; & $env:LOCALAPPDATA\\CodexTools\\go1.26.3\\go\\bin\\go.exe test -count=1 ./..."
+      - "cd F:/bumblebee-hive; npm run test:e2e"
+    stop_if:
+      - "Join idempotency conflicts with Hive enrollment API constraints."
+      - "A stable device identity policy decision is needed beyond reusing local config."
+      - "Required changes touch files outside allowed_files."
+    receipt:
+      result: done
+      note: notes/T005-hive-join-idempotency.md
+      changed_files:
+        - "F:/bumblebee/cmd/bumblebee/hive.go"
+        - "F:/bumblebee/internal/hive/hive.go"
+        - "F:/bumblebee/internal/hive/hive_test.go"
+        - "F:/bumblebee/README.md"
+        - "F:/bumblebee/docs/transport.md"
+        - "F:/bumblebee-hive/test/e2e.test.ts"
+      commands:
+        - cmd: "cd F:/bumblebee; $env:GOEXPERIMENT=''; & $env:LOCALAPPDATA\\CodexTools\\go1.26.3\\go\\bin\\go.exe test -count=1 ./..."
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; $env:BUMBLEBEE_E2E='1'; $env:BUMBLEBEE_REPO='F:\\bumblebee'; $env:GO_EXE=\"$env:LOCALAPPDATA\\CodexTools\\go1.26.3\\go\\bin\\go.exe\"; npm run test:e2e"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npm test"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npm run build"
+          status: pass
+      summary: "Implemented idempotent Bumblebee hive join, explicit --new-device enrollment, enrollment environment support, docs, and cross-repo E2E proving test-device isolation."
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Add a guarded Hive purge endpoint and operator script for dry-run and confirmed device purge."
+    allowed_files:
+      - "F:/bumblebee-hive/src/index.ts"
+      - "F:/bumblebee-hive/scripts"
+      - "F:/bumblebee-hive/scripts/invoke-device-purge.ps1"
+      - "F:/bumblebee-hive/test/ingest.test.ts"
+      - "F:/bumblebee-hive/README.md"
+      - "F:/bumblebee-hive/docs/developer-rollout-runbook.md"
+    verify:
+      - "cd F:/bumblebee-hive; npm test"
+      - "cd F:/bumblebee-hive; npm run build"
+    stop_if:
+      - "Raw R2 object deletion cannot be represented without exposing object keys."
+      - "Purge semantics require a policy decision not covered by the goal."
+      - "Required changes touch files outside allowed_files."
+    receipt:
+      result: done
+      note: notes/T006-hive-device-purge.md
+      changed_files:
+        - "F:/bumblebee-hive/src/index.ts"
+        - "F:/bumblebee-hive/scripts/invoke-device-purge.ps1"
+        - "F:/bumblebee-hive/test/ingest.test.ts"
+        - "F:/bumblebee-hive/README.md"
+        - "F:/bumblebee-hive/docs/developer-rollout-runbook.md"
+      commands:
+        - cmd: "cd F:/bumblebee-hive; npm test"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npm run build"
+          status: pass
+        - cmd: "PowerShell parser check for scripts/invoke-device-purge.ps1"
+          status: pass
+      summary: "Added guarded device purge endpoint/script with dry-run, confirmation, production-disabled guard, D1/R2 cleanup, docs, and tests."
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Run full local cross-repo verification for the complete safety tranche."
+    allowed_files:
+      - "F:/bumblebee/docs/goals/hive-operator-safety"
+      - "F:/bumblebee/docs/goals/hive-operator-safety/state.yaml"
+      - "F:/bumblebee/docs/goals/hive-operator-safety/notes/T007-local-verification.md"
+      - "F:/bumblebee-hive/test"
+      - "F:/bumblebee-hive/README.md"
+      - "F:/bumblebee/README.md"
+    verify:
+      - "cd F:/bumblebee; & $env:LOCALAPPDATA\\CodexTools\\go1.26.3\\go\\bin\\go.exe test -count=1 ./..."
+      - "cd F:/bumblebee-hive; npm test"
+      - "cd F:/bumblebee-hive; npm run build"
+      - "cd F:/bumblebee-hive; $env:BUMBLEBEE_E2E='1'; $env:BUMBLEBEE_REPO='F:\\bumblebee'; $env:GO_EXE=\"$env:LOCALAPPDATA\\CodexTools\\go1.26.3\\go\\bin\\go.exe\"; npm run test:e2e"
+    stop_if:
+      - "Any full verification command fails twice."
+      - "Verification requires live production mutation before local proof is complete."
+    receipt:
+      result: done
+      note: notes/T007-local-verification.md
+      changed_files:
+        - "F:/bumblebee/docs/goals/hive-operator-safety/state.yaml"
+        - "F:/bumblebee/docs/goals/hive-operator-safety/notes/T007-local-verification.md"
+      commands:
+        - cmd: "cd F:/bumblebee; $env:GOEXPERIMENT=''; & $env:LOCALAPPDATA\\CodexTools\\go1.26.3\\go\\bin\\go.exe test -count=1 ./..."
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npm test"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npm run build"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; $env:BUMBLEBEE_E2E='1'; $env:BUMBLEBEE_REPO='F:\\bumblebee'; $env:GO_EXE=\"$env:LOCALAPPDATA\\CodexTools\\go1.26.3\\go\\bin\\go.exe\"; npm run test:e2e"
+          status: pass
+      summary: "Full local cross-repo verification passed, but final safety completion remains incomplete because T003 installer/verification-script compatibility-layer update is still required."
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Deploy/migrate Hive and run a redacted live smoke proving production views stay clean while test data is isolated and purgeable."
+    allowed_files:
+      - "F:/bumblebee/docs/goals/hive-operator-safety"
+      - "F:/bumblebee/docs/goals/hive-operator-safety/state.yaml"
+      - "F:/bumblebee/docs/goals/hive-operator-safety/notes/T008-live-deploy-smoke.md"
+      - "F:/bumblebee-hive/README.md"
+      - "F:/bumblebee-hive/docs/developer-rollout-runbook.md"
+    verify:
+      - "cd F:/bumblebee-hive; npx wrangler d1 migrations list bumblebee-hive --remote"
+      - "cd F:/bumblebee-hive; npx wrangler deploy"
+      - "Live smoke: enroll test device, produce fixture finding, verify default production findings exclude it, verify environment=test includes it, purge it, verify total production findings remain clean."
+    stop_if:
+      - "Cloudflare auth or deployment access is unavailable."
+      - "Live smoke would print secrets, raw object keys, or full device IDs."
+      - "Live smoke would mutate current production device data beyond intended installer/run validation."
+    receipt:
+      result: done
+      note: notes/T008-live-deploy-smoke.md
+      changed_files:
+        - "F:/bumblebee/docs/goals/hive-operator-safety/state.yaml"
+        - "F:/bumblebee/docs/goals/hive-operator-safety/notes/T008-live-deploy-smoke.md"
+      commands:
+        - cmd: "cd F:/bumblebee-hive; npx wrangler d1 migrations list bumblebee-hive --remote"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npx wrangler d1 migrations apply bumblebee-hive --remote"
+          status: pass
+        - cmd: "cd F:/bumblebee-hive; npx wrangler deploy"
+          status: pass
+        - cmd: "Redacted live smoke: enroll test device, run hive run, verify test-only finding, verify production clean, purge, verify cleanup."
+          status: pass
+        - cmd: "Post-cleanup live check for zero test devices and zero default production findings."
+          status: pass
+      summary: "Applied remote migration 0010, deployed Hive version ba6db10c-d6b6-49ee-ac2d-6953260ea2fa, and proved with redacted live smoke that test findings stay out of default production views and are purgeable."
+  - id: T009
+    type: worker
+    assignee: Worker
+    status: active
+    objective: "Commit and push the completed safety tranche in clean cross-repo checkpoints after verification passes."
+    allowed_files:
+      - "F:/bumblebee"
+      - "F:/bumblebee-hive"
+    verify:
+      - "cd F:/bumblebee; git status --short --branch"
+      - "cd F:/bumblebee-hive; git status --short --branch"
+      - "Both repos have committed and pushed changes with no unintended untracked files."
+    stop_if:
+      - "Unrelated user changes are present and cannot be separated safely."
+      - "Remote push is rejected."
+      - "Verification from T007/T008 is not current."
+    receipt: null
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    objective: "Audit whether the Hive operator-safety tranche is complete."
+    inputs:
+      - "All task receipts."
+      - "Current local and live verification results."
+      - "Current git status for both repos."
+    constraints:
+      - "Read-only only."
+      - "Do not mark complete if any required Worker remains queued, active, blocked without replacement, or unverified."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Mapping from original outcome to evidence."
+      - "Residual risks."
+      - "Next task if not complete."
+    receipt: null
