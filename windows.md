@@ -893,7 +893,7 @@ discovery and deployment guidance, not a separate Windows scanner.
 Current branch model:
 
 - `upstream/main` is the Perplexity source of truth.
-- `origin/windows/compat-layer` is the TakeThree-maintained Windows fork branch.
+- `origin/windows/compat-layer` is the maintained Windows fork branch.
 - Local `main` should remain a clean mirror of `upstream/main`.
 - Local `windows/compat-layer` should track `origin/windows/compat-layer`.
 - Upstream PRs to Perplexity are optional and not part of the current workflow.
@@ -929,7 +929,7 @@ Maintenance receipt from 2026-05-26 upstream sync:
 - Because the branch was already current with origin and no rebase rewrote
   history, no `--force-with-lease` push was needed. This receipt can be
   published with a normal push. Upstream PR work remains intentionally
-  unchecked because this fork is self-maintained in the TakeThree org for now.
+  unchecked because this fork is self-maintained under `bradmb` for now.
 
 - Fetched `upstream` and `origin`; `upstream/main` advanced from `611dc79` to
   `52d6891` with `feat(threat_intel): add TrapDoor Crypto Stealer exposure
@@ -948,8 +948,8 @@ Maintenance receipt from 2026-05-26 upstream sync:
   present.
 - Because the branch was rebased, the required publish step is
   `git push --force-with-lease origin windows/compat-layer`. Upstream PR work
-  remains intentionally unchecked because this fork is self-maintained in the
-  TakeThree org for now.
+  remains intentionally unchecked because this fork is self-maintained under
+  `bradmb` for now.
 
 Maintenance receipt from 2026-05-24 base-code cleanup:
 

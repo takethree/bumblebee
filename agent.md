@@ -2,18 +2,18 @@
 
 ## Windows Fork Branch Model
 
-This repo is maintained as a TakeThree Windows compatibility fork of upstream
+This repo is maintained as a Windows compatibility fork of upstream
 Bumblebee. Do not commit Windows compatibility work directly to `main`.
 
 Remotes:
 
 - `upstream`: `https://github.com/perplexityai/bumblebee/`
-- `origin`: `https://github.com/takethree/bumblebee.git`
+- `origin`: `https://github.com/bradmb/bumblebee.git`
 
 Branches:
 
 - `main`: clean local mirror of `upstream/main`.
-- `windows/compat-layer`: active TakeThree-maintained Windows compatibility
+- `windows/compat-layer`: active Windows compatibility
   branch, tracking `origin/windows/compat-layer`.
 
 Maintenance workflow:
@@ -37,5 +37,5 @@ Rules:
 - Treat changes to shared schema, parsers, output sinks, exposure matching,
   profile meanings, or root-kind taxonomy as high-maintenance-risk changes.
 - Upstream PRs to Perplexity are optional and not part of the current workflow;
-  this branch is maintained in the TakeThree fork unless explicitly directed
+  this branch is maintained in the `bradmb` fork unless explicitly directed
   otherwise.

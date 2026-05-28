@@ -4,7 +4,7 @@
 *.ndjson
 .idea/
 .vscode/
-docs/goals/**/.goalbuddy-board/
+docs/goals/
 
 # goreleaser output
 /dist/
